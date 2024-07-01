@@ -1,6 +1,6 @@
 # Bkit
 
-A brief description of what your package does.
+Bkit is a Swift package that provides a comprehensive networking layer, a flexible logging system, and robust data parsing capabilities. It simplifies the process of making HTTP requests, logging application events, and decoding JSON data, making it easier to build and maintain your iOS and macOS applications.
 
 ## Features
 
