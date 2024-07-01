@@ -6,7 +6,7 @@
 
 import Foundation
 
-public class NetworkServiceImpl: NetworkStreamingService, NetworkService {
+public class NetworkServiceImpl: CombinedNetworkService {
     let logger = LoggerManager(subsystem: "Networking", category: "general")
     private let urlSession: URLSession
     private let dataParser: DataParser

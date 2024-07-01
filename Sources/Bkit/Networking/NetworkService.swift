@@ -10,6 +10,7 @@
 import Foundation
 import os
 
+public protocol CombinedNetworkService: NetworkStreamingService, NetworkService {}
 public protocol NetworkService {
     func sendRequest<T: Decodable>(request: any HTTPRequest, responseModel: T.Type) async throws -> T
 }
@@ -23,6 +24,4 @@ public protocol NetworkStreamingService {
         transform: @escaping (T) -> U?
     ) async throws -> AsyncThrowingStream<U, Error>
 }
-
-
 
