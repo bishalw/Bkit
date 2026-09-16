@@ -6,16 +6,9 @@ import Foundation
 /// without holding a view, and a test can assert on the resulting path without
 /// running one.
 public struct StackState<Route: Hashable & Sendable>: Equatable, Sendable {
-    /// The pushed routes, root first.
-    ///
-    /// The setter is private so that `Binding`'s dynamic member lookup cannot
-    /// hand SwiftUI a writable binding straight to the array. Without that
-    /// restriction `$state.path` would resolve to the stored property and let
-    /// the system assign to it directly; with it, the binding in
-    /// `SwiftUIBindings.swift` is the only `path` a caller can find, and every
-    /// system write is funnelled through `replace(with:)`. This is deliberate,
-    /// not an oversight: one write path is far easier to reason about and to
-    /// hook than an arbitrary number of them.
+    /// The pushed routes, root first. Read-only from outside; see
+    /// `SwiftUIBindings.swift` for why every write arrives through
+    /// ``replace(with:)``.
     public private(set) var path: [Route]
 
     /// Creates a stack, optionally already showing a path.
@@ -45,7 +38,6 @@ public struct StackState<Route: Hashable & Sendable>: Equatable, Sendable {
         path.popLast()
     }
 
-    /// Returns to the root, discarding the rest of the path.
     /// How many routes are stacked above the root view.
     ///
     /// The root is not counted, because it is not on the path: a stack showing
@@ -70,23 +62,17 @@ public struct StackState<Route: Hashable & Sendable>: Equatable, Sendable {
         return true
     }
 
+    /// Returns to the root, discarding the rest of the path.
     public mutating func popToRoot() {
         path.removeAll()
     }
 
     /// Replaces the whole path in one step.
     ///
-    /// This serves two callers at once, which is why it is public rather than
-    /// an implementation detail. SwiftUI is the first: it owns the stack's
-    /// interactive behaviour, so when someone swipes back or taps a back
-    /// button the system hands back a shortened path, and the `Binding`
-    /// extension in `SwiftUIBindings.swift` writes it here. That makes this the
-    /// method the system calls on every pop, and the place to look when the
-    /// path changes without any feature code asking for it.
-    ///
-    /// A deep link is the second: handing over a finished path lands the user
-    /// at a destination in one move, without animating through the routes in
-    /// between or briefly rendering screens nobody asked for.
+    /// Two callers need it: SwiftUI writes a shortened path back here on every
+    /// interactive pop, and a deep link hands over a finished path to land
+    /// somewhere in one move. So this is the method to look at when the path
+    /// changes and no feature code asked for it.
     public mutating func replace(with path: [Route]) {
         self.path = path
     }

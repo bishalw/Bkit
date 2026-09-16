@@ -6,22 +6,13 @@ import Foundation
 /// is the only description of what the user is looking at. Modelling that item
 /// rather than a `Bool` keeps the description and the visibility in step.
 public struct FullScreenCoverState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
-    /// The item being shown, or `nil` when no cover is up.
-    ///
-    /// The setter is private so that `Binding`'s dynamic member lookup cannot
-    /// hand SwiftUI a writable binding straight to the stored property.
-    /// Otherwise `$state.item` would resolve to it and the system could assign
-    /// through; as written, the binding in `SwiftUIBindings.swift` is the only
-    /// `item` a caller can reach, so every dismissal arrives through
-    /// `replace(with:)`. That single write path is the point of the
-    /// restriction, not a side effect of it.
+    /// The item being shown, or `nil` when no cover is up. Read-only from
+    /// outside; see `SwiftUIBindings.swift` for why every write arrives
+    /// through ``replace(with:)``.
     public private(set) var item: Item?
 
-    /// Creates a cover state, optionally already presenting an item.
-    ///
-    /// Starting with an item is how a deep link opens straight onto a cover,
-    /// such as an onboarding or paywall flow, without first rendering the
-    /// screen it covers.
+    /// Creates a cover state, optionally already presenting an item — how a
+    /// deep link opens straight onto a paywall or onboarding flow.
     public init(item: Item? = nil) {
         self.item = item
     }

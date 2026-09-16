@@ -1,5 +1,15 @@
 import SwiftUI
 
+// Why every state type here keeps its stored property `private(set)`:
+//
+// `Binding` uses dynamic member lookup, so `$state.path` would ordinarily
+// resolve to the stored array and let SwiftUI assign straight into it. A
+// private setter makes that key path unwritable, which leaves the extensions
+// below as the only `path`, `item` or `isPresented` a caller can reach — and
+// they route every system write through `replace(with:)`. One write path is
+// what makes an interactive pop or dismissal observable in the same place as
+// a deep link, instead of in as many places as there are call sites.
+
 /// A stack whose path SwiftUI is allowed to write back.
 ///
 /// The protocol exists so the `Binding` extension below can be written once
@@ -57,13 +67,6 @@ extension PresentationState: PresentationFlagState {}
 
 public extension Binding where Value: NavigationPathState {
     /// A path binding to hand to `NavigationStack(path:)`.
-    ///
-    /// Reads pass the stored path straight through; writes go through
-    /// `replace(with:)` rather than assigning to the array, which is what keeps
-    /// a system pop and a deep link on the same code path. Dynamic member
-    /// lookup would otherwise offer `$flow.stack.path` as a plain stored
-    /// property binding, so the state keeps its setter private and this
-    /// property is the only `path` the compiler can find.
     var path: Binding<[Value.Route]> {
         Binding<[Value.Route]>(
             get: { wrappedValue.path },
@@ -78,13 +81,8 @@ public extension Binding where Value: NavigationPathState {
 
 public extension Binding where Value: PresentedItemState {
     /// An item binding to hand to `.sheet(item:)` or
-    /// `.fullScreenCover(item:)`.
-    ///
-    /// Reads pass the stored item straight through; writes, including the
-    /// `nil` SwiftUI sends when the user swipes a sheet away, go through
-    /// `replace(with:)`. As with the path binding, the state keeps its setter
-    /// private so dynamic member lookup cannot offer a writable binding that
-    /// would bypass that method.
+    /// `.fullScreenCover(item:)`. Writes, including the `nil` SwiftUI sends on
+    /// an interactive dismissal, go through `replace(with:)`.
     var item: Binding<Value.Item?> {
         Binding<Value.Item?>(
             get: { wrappedValue.item },

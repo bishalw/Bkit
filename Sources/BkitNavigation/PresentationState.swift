@@ -14,12 +14,9 @@ import Foundation
 /// state, which any code can flip and no test can distinguish from every other
 /// flag beside it.
 public struct PresentationState: Equatable, Sendable {
-    /// Whether the surface is up.
-    ///
-    /// The setter is private for the same reason as ``SheetState/item``: it
-    /// stops `Binding`'s dynamic member lookup from handing SwiftUI a writable
-    /// binding to the stored property, so every interactive dismissal arrives
-    /// through ``replace(with:)``.
+    /// Whether the surface is up. Read-only from outside; see
+    /// `SwiftUIBindings.swift` for why every write arrives through
+    /// ``replace(with:)``.
     public private(set) var isPresented: Bool
 
     /// Creates a presentation state, optionally already showing.
