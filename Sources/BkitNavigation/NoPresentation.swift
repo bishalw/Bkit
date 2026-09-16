@@ -8,7 +8,7 @@ import Foundation
 /// compiler rather than by convention. Because it is uninhabited, `id` can
 /// return `Never` and satisfy `Identifiable` without inventing an identifier
 /// that would never be read.
-public enum NoPresentation: Identifiable, Equatable {
+public enum NoPresentation: Identifiable, Equatable, Sendable {
     public var id: Never {
         switch self {}
     }
@@ -21,4 +21,4 @@ public enum NoPresentation: Identifiable, Equatable {
 /// never uses. Naming those unused parameters `NoPresentation` says the feature
 /// has no modal surfaces, instead of leaving a reader to check whether some
 /// distant call site presents them.
-public typealias StackFlowState<Route: Hashable> = FlowState<Route, NoPresentation, NoPresentation>
+public typealias StackFlowState<Route: Hashable & Sendable> = FlowState<Route, NoPresentation, NoPresentation>

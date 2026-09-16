@@ -5,7 +5,7 @@ import Foundation
 /// The presented item is modelled instead of a bare `Bool` so the sheet's
 /// content and its visibility cannot disagree: there is no state in which a
 /// sheet is up but nobody knows what it is showing.
-public struct SheetState<Item>: Equatable where Item: Identifiable & Equatable {
+public struct SheetState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
     /// The item being shown, or `nil` when no sheet is up.
     ///
     /// The setter is private so that `Binding`'s dynamic member lookup cannot

@@ -5,7 +5,7 @@ import Foundation
 /// Keeping the stack in a value type means a feature can decide where to go
 /// without holding a view, and a test can assert on the resulting path without
 /// running one.
-public struct StackState<Route: Hashable>: Equatable {
+public struct StackState<Route: Hashable & Sendable>: Equatable, Sendable {
     /// The pushed routes, root first.
     ///
     /// The setter is private so that `Binding`'s dynamic member lookup cannot

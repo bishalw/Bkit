@@ -8,8 +8,10 @@ import Foundation
 /// keeping them in one value gives a feature a single thing to own, to hand to
 /// a deep link, and to compare in a test. A flow that does not present
 /// everything can say so: see ``StackFlowState``.
-public struct FlowState<Route, Sheet, FullScreen>: Equatable
-where Route: Hashable, Sheet: Identifiable & Equatable, FullScreen: Identifiable & Equatable {
+public struct FlowState<Route, Sheet, FullScreen>: Equatable, Sendable
+where Route: Hashable & Sendable,
+      Sheet: Identifiable & Equatable & Sendable,
+      FullScreen: Identifiable & Equatable & Sendable {
     /// The routes pushed within this feature.
     public var stack: StackState<Route>
 

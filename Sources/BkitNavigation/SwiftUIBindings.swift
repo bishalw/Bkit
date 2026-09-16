@@ -8,7 +8,7 @@ import SwiftUI
 /// `NavigationStack(path:)` needs and nothing more.
 public protocol StackBindingState {
     /// The element type the stack pushes.
-    associatedtype Route: Hashable
+    associatedtype Route: Hashable & Sendable
 
     /// The pushed routes, root first.
     var path: [Route] { get }
@@ -26,7 +26,7 @@ public protocol StackBindingState {
 /// presentation styles without naming either.
 public protocol ItemPresentationBindingState {
     /// The type identifying what is presented.
-    associatedtype Item: Identifiable & Equatable
+    associatedtype Item: Identifiable & Equatable & Sendable
 
     /// The presented item, or `nil` when nothing is presented.
     var item: Item? { get }
