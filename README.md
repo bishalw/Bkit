@@ -32,13 +32,45 @@ To use the networking features, create an instance of `NetworkServiceImpl` and c
 ### Navigation
 
 `BkitNavigation` models navigation *state*. It gives a feature value types for
-the three surfaces SwiftUI presents — `StackState`, `SheetState`,
-`FullScreenCoverState`, bundled as `FlowState` — plus the bindings that hand those
-values to `NavigationStack`, `.sheet` and `.fullScreenCover`.
+the surfaces SwiftUI presents — `StackState`, `SheetState`,
+`FullScreenCoverState`, and `PresentationState` for the ones driven by a flag
+rather than an item — plus the bindings that hand those values to
+`NavigationStack`, `.sheet`, `.fullScreenCover` and friends.
+
+Every transition is a named method (`push`, `popTo(_:)`, `present`, `dismiss`),
+the stored path and item are read-only from outside, and the bindings are the
+only way the system can write back. So navigation is testable without a view,
+and a screen that appears has exactly one method that could have caused it.
 
 It is not a router. It has no opinion about how one module reaches a screen
 that lives in another, and adding one would mean knowing about modules it
 cannot see.
+
+#### Build the flow your feature actually has
+
+`FlowState` bundles a stack, a sheet and a cover for features that use all
+three. Most don't. Compose the pieces you need instead — they are independent
+values, and an app-specific flow reads better than a bundle with unused
+parameters:
+
+```swift
+struct TripListNavigation: Equatable {
+    var stack = StackState<TripsRoute>()
+    var sheet = SheetState<TripsSheet>()
+}
+
+struct TripDetailNavigation: Equatable {
+    var sheet = SheetState<TripDetailSheet>()
+    var map = PresentationState()
+}
+```
+
+Reading state stays direct, without reaching for equality on an optional:
+
+```swift
+if navigation.sheet.isPresenting(.editor) { … }
+navigation.stack.popTo(.tripList)
+```
 
 #### Keeping features independent
 

@@ -21,9 +21,7 @@ public protocol NavigationPathState {
 /// A presentation whose item SwiftUI is allowed to write back.
 ///
 /// Sheets and full screen covers differ in how they look and in nothing that
-/// matters here, so both conform and share one binding. The name reads a
-/// little long for what it describes, which is the cost of covering both
-/// presentation styles without naming either.
+/// matters here, so both conform and share one binding.
 public protocol PresentedItemState {
     /// The type identifying what is presented.
     associatedtype Item: Identifiable & Equatable & Sendable
