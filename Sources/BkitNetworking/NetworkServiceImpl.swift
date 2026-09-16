@@ -3,6 +3,7 @@
 //  Bkit
 //
 
+import BkitLogging
 import Foundation
 
 public final class NetworkServiceImpl: CombinedNetworkService {

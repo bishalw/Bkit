@@ -1,7 +1,7 @@
 import XCTest
-@testable import Bkit
+@testable import BkitNetworking
 
-final class BkitTests: XCTestCase {
+final class BkitNetworkingTests: XCTestCase {
     func testExample() throws {
         // XCTest Documentation
         // https://developer.apple.com/documentation/xctest

@@ -9,11 +9,17 @@ let package = Package(
         .iOS(.v15),
         .macOS(.v12)
     ],
-    
+
     products: [
         .library(
-            name: "Bkit",
-            targets: ["Bkit"]),
+            name: "BkitNetworking",
+            targets: ["BkitNetworking"]),
+        .library(
+            name: "BkitLogging",
+            targets: ["BkitLogging"]),
+        .library(
+            name: "BkitStorage",
+            targets: ["BkitStorage"]),
         .library(
             name: "BkitNavigation",
             targets: ["BkitNavigation"]),
@@ -21,14 +27,20 @@ let package = Package(
     dependencies: [],
     targets: [
         .target(
-            name: "Bkit",
+            name: "BkitNetworking",
+            dependencies: ["BkitLogging"]),
+        .target(
+            name: "BkitLogging",
+            dependencies: []),
+        .target(
+            name: "BkitStorage",
             dependencies: []),
         .target(
             name: "BkitNavigation",
             dependencies: []),
         .testTarget(
-            name: "BkitTests",
-            dependencies: ["Bkit"]),
+            name: "BkitNetworkingTests",
+            dependencies: ["BkitNetworking"]),
         .testTarget(
             name: "BkitNavigationTests",
             dependencies: ["BkitNavigation"]),
