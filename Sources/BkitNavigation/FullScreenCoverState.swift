@@ -31,6 +31,15 @@ public struct FullScreenCoverState<Item>: Equatable, Sendable where Item: Identi
         item != nil
     }
 
+    /// Whether this exact item is the one currently presented.
+    ///
+    /// Saves every call site the `state.item == .editor` comparison, and reads
+    /// as the question being asked rather than as an equality check against an
+    /// optional that may hold something else entirely.
+    public func isPresenting(_ item: Item) -> Bool {
+        self.item == item
+    }
+
     /// Shows the given item, replacing whatever the cover was showing before.
     public mutating func present(_ item: Item) {
         self.item = item

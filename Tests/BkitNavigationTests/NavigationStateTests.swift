@@ -93,6 +93,17 @@ final class NavigationStateTests: XCTestCase {
         binding.item.wrappedValue = nil
         XCTAssertNil(sheet.item)
     }
+    func testIsPresentingMatchesOnlyThePresentedItem() {
+        var sheet = SheetState<TestModal>()
+        XCTAssertFalse(sheet.isPresenting(.settings))
+
+        sheet.present(.settings)
+        XCTAssertTrue(sheet.isPresenting(.settings))
+        XCTAssertFalse(sheet.isPresenting(.composer))
+
+        sheet.dismiss()
+        XCTAssertFalse(sheet.isPresenting(.settings))
+    }
 }
 
 private enum TestRoute: Hashable, Sendable {
