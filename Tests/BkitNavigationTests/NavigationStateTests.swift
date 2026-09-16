@@ -60,6 +60,14 @@ final class NavigationStateTests: XCTestCase {
         XCTAssertNil(state.fullScreen.item)
     }
 
+    func testStackFlowStateDefaultsToEmptyStackAndNoPresentation() {
+        let state = StackFlowState<TestRoute>()
+
+        XCTAssertTrue(state.stack.isEmpty)
+        XCTAssertNil(state.sheet.item)
+        XCTAssertNil(state.fullScreen.item)
+    }
+
     func testStackBindingMutatesUnderlyingState() {
         var state = StackState<TestRoute>(path: [.home])
         let binding = Binding<StackState<TestRoute>>(
