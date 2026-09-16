@@ -5,7 +5,7 @@ import Foundation
 /// A cover hides the screen underneath it entirely, so the item it is showing
 /// is the only description of what the user is looking at. Modelling that item
 /// rather than a `Bool` keeps the description and the visibility in step.
-public struct FullScreenState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
+public struct FullScreenCoverState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
     /// The item being shown, or `nil` when no cover is up.
     ///
     /// The setter is private so that `Binding`'s dynamic member lookup cannot

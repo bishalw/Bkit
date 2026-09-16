@@ -39,7 +39,7 @@ public protocol ItemPresentationBindingState {
 
 extension StackState: StackBindingState {}
 extension SheetState: ItemPresentationBindingState {}
-extension FullScreenState: ItemPresentationBindingState {}
+extension FullScreenCoverState: ItemPresentationBindingState {}
 
 public extension Binding where Value: StackBindingState {
     /// A path binding to hand to `NavigationStack(path:)`.

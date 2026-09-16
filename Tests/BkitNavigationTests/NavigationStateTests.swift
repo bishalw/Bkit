@@ -36,8 +36,8 @@ final class NavigationStateTests: XCTestCase {
         XCTAssertEqual(state.item, .settings)
     }
 
-    func testFullScreenStatePresentDismissAndReplace() {
-        var state = FullScreenState(item: TestModal.settings)
+    func testFullScreenCoverStatePresentDismissAndReplace() {
+        var state = FullScreenCoverState(item: TestModal.settings)
 
         XCTAssertTrue(state.isPresented)
         XCTAssertEqual(state.item, .settings)

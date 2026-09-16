@@ -19,7 +19,7 @@ where Route: Hashable & Sendable,
     public var sheet: SheetState<Sheet>
 
     /// The full screen cover this feature is presenting, if any.
-    public var fullScreen: FullScreenState<FullScreen>
+    public var fullScreen: FullScreenCoverState<FullScreen>
 
     /// Creates a flow, by default showing nothing but its root screen.
     ///
@@ -29,7 +29,7 @@ where Route: Hashable & Sendable,
     public init(
         stack: StackState<Route> = .init(),
         sheet: SheetState<Sheet> = .init(),
-        fullScreen: FullScreenState<FullScreen> = .init()
+        fullScreen: FullScreenCoverState<FullScreen> = .init()
     ) {
         self.stack = stack
         self.sheet = sheet

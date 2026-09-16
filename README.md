@@ -33,7 +33,7 @@ To use the networking features, create an instance of `NetworkServiceImpl` and c
 
 `BkitNavigation` models navigation *state*. It gives a feature value types for
 the three surfaces SwiftUI presents — `StackState`, `SheetState`,
-`FullScreenState`, bundled as `FlowState` — plus the bindings that hand those
+`FullScreenCoverState`, bundled as `FlowState` — plus the bindings that hand those
 values to `NavigationStack`, `.sheet` and `.fullScreenCover`.
 
 It is not a router. It has no opinion about how one module reaches a screen
