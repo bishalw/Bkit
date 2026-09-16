@@ -6,7 +6,7 @@ import SwiftUI
 /// against any stack-shaped state rather than per concrete type. It asks for a
 /// readable path and a single mutating write, which is exactly the contract
 /// `NavigationStack(path:)` needs and nothing more.
-public protocol StackBindingState {
+public protocol NavigationPathState {
     /// The element type the stack pushes.
     associatedtype Route: Hashable & Sendable
 
@@ -24,7 +24,7 @@ public protocol StackBindingState {
 /// matters here, so both conform and share one binding. The name reads a
 /// little long for what it describes, which is the cost of covering both
 /// presentation styles without naming either.
-public protocol ItemPresentationBindingState {
+public protocol PresentedItemState {
     /// The type identifying what is presented.
     associatedtype Item: Identifiable & Equatable & Sendable
 
@@ -37,11 +37,11 @@ public protocol ItemPresentationBindingState {
     mutating func replace(with item: Item?)
 }
 
-extension StackState: StackBindingState {}
-extension SheetState: ItemPresentationBindingState {}
-extension FullScreenCoverState: ItemPresentationBindingState {}
+extension StackState: NavigationPathState {}
+extension SheetState: PresentedItemState {}
+extension FullScreenCoverState: PresentedItemState {}
 
-public extension Binding where Value: StackBindingState {
+public extension Binding where Value: NavigationPathState {
     /// A path binding to hand to `NavigationStack(path:)`.
     ///
     /// Reads pass the stored path straight through; writes go through
@@ -62,7 +62,7 @@ public extension Binding where Value: StackBindingState {
     }
 }
 
-public extension Binding where Value: ItemPresentationBindingState {
+public extension Binding where Value: PresentedItemState {
     /// An item binding to hand to `.sheet(item:)` or
     /// `.fullScreenCover(item:)`.
     ///
