@@ -124,6 +124,30 @@ final class NavigationStateTests: XCTestCase {
         XCTAssertFalse(state.popTo(.detail(id: "a")))
         XCTAssertEqual(state.path, [.home, .detail(id: "a")])
     }
+    func testPresentationStateTransitions() {
+        var state = PresentationState()
+        XCTAssertFalse(state.isPresented)
+
+        state.present()
+        XCTAssertTrue(state.isPresented)
+
+        state.dismiss()
+        XCTAssertFalse(state.isPresented)
+    }
+
+    func testPresentationFlagBindingMutatesUnderlyingState() {
+        var state = PresentationState()
+        let binding = Binding<PresentationState>(
+            get: { state },
+            set: { newValue in state = newValue }
+        )
+
+        binding.isPresented.wrappedValue = true
+        XCTAssertTrue(state.isPresented)
+
+        binding.isPresented.wrappedValue = false
+        XCTAssertFalse(state.isPresented)
+    }
 }
 
 private enum TestRoute: Hashable, Sendable {

@@ -37,9 +37,25 @@ public protocol PresentedItemState {
     mutating func replace(with item: Item?)
 }
 
+/// A presentation whose visibility SwiftUI is allowed to write back.
+///
+/// The counterpart to ``PresentedItemState`` for the surfaces that carry no
+/// item: SwiftUI drives those with an `isPresented:` binding, and needs the
+/// same single write path to report an interactive dismissal.
+public protocol PresentationFlagState {
+    /// Whether the surface is up.
+    var isPresented: Bool { get }
+
+    /// Accepts visibility from the system, including the `false` that arrives
+    /// on an interactive dismissal. See ``PresentationState/replace(with:)``
+    /// for why this is the only write.
+    mutating func replace(with isPresented: Bool)
+}
+
 extension StackState: NavigationPathState {}
 extension SheetState: PresentedItemState {}
 extension FullScreenCoverState: PresentedItemState {}
+extension PresentationState: PresentationFlagState {}
 
 public extension Binding where Value: NavigationPathState {
     /// A path binding to hand to `NavigationStack(path:)`.
@@ -77,6 +93,22 @@ public extension Binding where Value: PresentedItemState {
             set: { newItem in
                 var copy = wrappedValue
                 copy.replace(with: newItem)
+                wrappedValue = copy
+            }
+        )
+    }
+}
+
+public extension Binding where Value: PresentationFlagState {
+    /// A binding for `.sheet(isPresented:)`, `.fullScreenCover(isPresented:)`,
+    /// `.alert(_:isPresented:)`, `.popover(isPresented:)` and the rest of the
+    /// surfaces SwiftUI toggles rather than fills.
+    var isPresented: Binding<Bool> {
+        Binding<Bool>(
+            get: { wrappedValue.isPresented },
+            set: { newValue in
+                var copy = wrappedValue
+                copy.replace(with: newValue)
                 wrappedValue = copy
             }
         )
