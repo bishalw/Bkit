@@ -46,6 +46,30 @@ public struct StackState<Route: Hashable & Sendable>: Equatable, Sendable {
     }
 
     /// Returns to the root, discarding the rest of the path.
+    /// How many routes are stacked above the root view.
+    ///
+    /// The root is not counted, because it is not on the path: a stack showing
+    /// only the root has depth zero, which is also what `isEmpty` reports.
+    public var depth: Int {
+        path.count
+    }
+
+    /// Pops back to the most recent occurrence of `route`, leaving it on top.
+    ///
+    /// Does nothing if the route is not on the stack. A caller asking to return
+    /// somewhere it has never been is a bug in the caller, and quietly emptying
+    /// the stack would hide that behind a screen that looks plausible.
+    ///
+    /// - Returns: Whether the path changed.
+    @discardableResult
+    public mutating func popTo(_ route: Route) -> Bool {
+        guard let index = path.lastIndex(of: route), index < path.count - 1 else {
+            return false
+        }
+        path.removeSubrange((index + 1)...)
+        return true
+    }
+
     public mutating func popToRoot() {
         path.removeAll()
     }
