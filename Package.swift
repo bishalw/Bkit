@@ -14,15 +14,23 @@ let package = Package(
         .library(
             name: "Bkit",
             targets: ["Bkit"]),
+        .library(
+            name: "BkitNavigation",
+            targets: ["BkitNavigation"]),
     ],
     dependencies: [],
     targets: [
         .target(
             name: "Bkit",
             dependencies: []),
+        .target(
+            name: "BkitNavigation",
+            dependencies: []),
         .testTarget(
             name: "BkitTests",
             dependencies: ["Bkit"]),
+        .testTarget(
+            name: "BkitNavigationTests",
+            dependencies: ["BkitNavigation"]),
     ]
 )
-
