@@ -5,6 +5,10 @@ import Foundation
 /// The presented item is modelled instead of a bare `Bool` so the sheet's
 /// content and its visibility cannot disagree: there is no state in which a
 /// sheet is up but nobody knows what it is showing.
+///
+/// A screen that can show several sheets makes `Item` one enum of them all,
+/// rather than keeping a state or a flag per sheet: only one can be up at a
+/// time, and the type says so.
 public struct SheetState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
     /// The item being shown, or `nil` when no sheet is up. Read-only from
     /// outside; see `SwiftUIBindings.swift` for why every write arrives

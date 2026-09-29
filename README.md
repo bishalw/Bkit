@@ -273,3 +273,81 @@ struct TripsView: View {
 module adds. Both write back through `replace(with:)`, so a swipe-back gesture
 or a sheet dismissal updates the same state a deep link would set, and there is
 one place to look when navigation changes on its own.
+
+The states are plain values — `Equatable`, `Sendable`, bound to no actor — so
+they sit wherever the app keeps state and the bindings reach them through any
+number of properties: `$model.nav.stack.path` on an `@Observable` model, or
+`$stack.path` on a `@State private var stack = StackState<Route>()` in a screen
+too small to have one.
+
+#### Patterns
+
+**One sheet enum per screen.** Give a screen's sheets one `Identifiable` enum
+and one `SheetState`, not a `Bool` each: two flags can both be `true`, one
+optional item cannot hold two sheets. Cases carry ids rather than copies of
+models, so the sheet reads current data and the enum stays cheap to compare:
+
+```swift
+enum LibrarySheet: Identifiable, Equatable, Sendable {
+    case newNote
+    case share(noteID: UUID)
+
+    var id: String {
+        switch self {
+        case .newNote: "newNote"
+        case .share(let noteID): "share-\(noteID)"
+        }
+    }
+}
+
+sheet.present(.share(noteID: note.id))  // replaces whatever was up
+```
+
+**Work after a dismissal.** The states say where the user is, not what happens
+next. Work that has to wait until a sheet has finished animating away — pushing
+the note it just created, say — goes in SwiftUI's `onDismiss`, forwarded to the
+owner, rather than in a "then push X" field on the state. `onDismiss` runs
+however the sheet went: the owner calling `dismiss()`, or a swipe down or the
+environment's `dismiss` action, which both arrive as `replace(with: nil)`.
+
+```swift
+.sheet(item: $model.nav.sheet.item, onDismiss: model.sheetDidDismiss) { … }
+
+// In the model:
+func sheetDidDismiss() {
+    guard let id = createdNoteID else { return }
+    createdNoteID = nil
+    nav.stack.push(.note(id: id))
+}
+```
+
+**A presented screen owns its own state.** Nothing here nests, by design. A
+sheet with its own `NavigationStack` keeps a `StackState` in that screen's
+model; it is not a child of the presenter's `FlowState`, and it goes away with
+the sheet. Make that model where a body re-evaluation cannot replace it — in the
+owner, when it presents the item — not inside the `.sheet` closure, which runs
+again every time the presenter's body does:
+
+```swift
+func compose() {
+    composer = ComposerModel()  // stored on the owner
+    nav.sheet.present(.newNote)
+}
+
+// In the view:
+case .newNote:
+    if let composer = model.composer { ComposerView(model: composer) }
+```
+
+**Surfaces that are always up.** A persistent sheet or panel the user cannot
+dismiss is not presentation state: nothing ever presents or dismisses it. Give
+it `.constant(true)` or make it part of the view's structure. These types model
+what can come and go.
+
+**Asking the path.** `path` is a readable array, so questions about the stack
+are `Array` calls, and the library deliberately does not wrap them:
+
+```swift
+let isEditing = model.nav.stack.path.contains(.editor(noteID: id))
+let top = model.nav.stack.path.last
+```
