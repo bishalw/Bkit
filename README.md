@@ -87,10 +87,15 @@ struct BearerToken: RequestInterceptor {
 ```
 
 **Streams.** `lines(_:)` yields the body line by line as it arrives;
-`events(_:)` parses Server-Sent Events (multi-line `data:`, `event:`, `id:`,
-`retry:`, comments) and by default ends at `data: [DONE]`. Decode an event with
+`events(_:)` parses Server-Sent Events as the HTML standard specifies
+(multi-line `data:`, `event:`, `id:`, `retry:`, comments, a leading byte order
+mark) and by default ends at `data: [DONE]`. Decode an event with
 `event.decode(MyDelta.self)`. A non-2xx stream throws `.http` with the start of
-its body. Streams aren't retried.
+its body. Streams aren't retried. The stream's last event id and reconnection
+time ride on every event (`id`, `retry`); a client that reconnects after the
+stream ends feeds `lines(_:)` to its own `ServerSentEventParser` and reads
+`lastEventID` and `reconnectionTime` from it, since a `retry:` can arrive in a
+block with no data, which dispatches no event.
 
 **Logging** is off unless you pass `HTTPLogger()`, which writes to the unified
 log through `OSLogSink` (`os.Logger`, debug level, marked public so it reads on

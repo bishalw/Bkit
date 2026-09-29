@@ -24,9 +24,50 @@ struct StreamingTests {
         var parser = ServerSentEventParser()
         for line in ["event: delta", "id: 7", "retry: 3000", "data: {}"] { _ = parser.consume(line: line) }
         #expect(parser.consume(line: "") == ServerSentEvent(event: "delta", data: "{}", id: "7", retry: 3000))
-        // The id carries over; the event name and retry don't.
+        // The id and the reconnection time are the stream's, so they carry over; the name doesn't.
         _ = parser.consume(line: "data: next")
-        #expect(parser.consume(line: "") == ServerSentEvent(data: "next", id: "7"))
+        #expect(parser.consume(line: "") == ServerSentEvent(data: "next", id: "7", retry: 3000))
+        #expect(parser.lastEventID == "7")
+    }
+
+    @Test func aRetryWithoutDataStillSetsTheReconnectionTime() {
+        var parser = ServerSentEventParser()
+        #expect(parser.reconnectionTime == nil)
+        #expect(parser.consume(line: "retry: 5000") == nil)
+        // Takes effect as soon as it arrives, before the block ends.
+        #expect(parser.reconnectionTime == 5000)
+        // A block with no data dispatches nothing, but the setting stays.
+        #expect(parser.consume(line: "") == nil)
+        #expect(parser.reconnectionTime == 5000)
+        _ = parser.consume(line: "data: x")
+        #expect(parser.consume(line: "") == ServerSentEvent(data: "x", retry: 5000))
+    }
+
+    @Test("a retry that isn't only ASCII digits is ignored", arguments: ["-1", "+5", "  5", "5s", "", "٥", "99999999999999999999999"])
+    func invalidRetry(value: String) {
+        var parser = ServerSentEventParser()
+        _ = parser.consume(line: "retry: 1000")
+        _ = parser.consume(line: "retry:" + value)
+        #expect(parser.reconnectionTime == 1000)
+    }
+
+    @Test func aByteOrderMarkIsStrippedAtTheStartOfTheStreamOnly() {
+        var parser = ServerSentEventParser()
+        _ = parser.consume(line: "\u{FEFF}data: first")
+        #expect(parser.consume(line: "") == ServerSentEvent(data: "first"))
+        // Later, U+FEFF is part of the field name, so the line is an unknown field.
+        _ = parser.consume(line: "\u{FEFF}data: second")
+        #expect(parser.consume(line: "") == nil)
+    }
+
+    @Test func anEmptyEventNameMeansTheDefault() {
+        var parser = ServerSentEventParser()
+        _ = parser.consume(line: "event:")
+        _ = parser.consume(line: "data: x")
+        #expect(parser.consume(line: "") == ServerSentEvent(data: "x"))
+        // And it replaces a name set earlier in the same block.
+        for line in ["event: delta", "event", "data: y"] { _ = parser.consume(line: line) }
+        #expect(parser.consume(line: "")?.event == nil)
     }
 
     @Test func commentsAndEmptyEventsAreSkipped() {
@@ -60,6 +101,18 @@ struct StreamingTests {
         let events = try await collect(HTTPClient(transport: transport, retry: .none).events(Endpoint(baseURL: api, path: "stream")))
         #expect(events == [ServerSentEvent(event: "delta", data: "{\"text\":\"Hel\nlo\"}"), ServerSentEvent(data: "🇳🇵")])
         #expect(transport.requests.first?.value(forHTTPHeaderField: "Accept") == "text/event-stream")
+    }
+
+    @Test func aBOMAndACRLFSplitAcrossChunksArriveWhole() async throws {
+        let chunks = [Data([0xEF, 0xBB]), Data([0xBF]) + json("data: a\r"), json("\n\r"), json("\ndata: b\r\n\r\n")]
+        let transport = FakeTransport([.stream(status: 200, chunks: chunks)])
+        let events = try await collect(HTTPClient(transport: transport, retry: .none).events(Endpoint(baseURL: api)))
+        #expect(events == [ServerSentEvent(data: "a"), ServerSentEvent(data: "b")])
+    }
+
+    @Test func aCRLFSplitAcrossChunksIsOneLineBreak() async throws {
+        let transport = FakeTransport([.stream(status: 200, chunks: [json("a\r"), json("\nb\r"), json("\n"), json("\rc")])])
+        #expect(try await collect(HTTPClient(transport: transport, retry: .none).lines(Endpoint(baseURL: api))) == ["a", "b", "", "c"])
     }
 
     @Test func withoutATerminatorEverythingIsYielded() async throws {
