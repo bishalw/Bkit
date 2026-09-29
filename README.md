@@ -141,7 +141,7 @@ the surfaces SwiftUI presents — `StackState`, `SheetState`,
 rather than an item — plus the bindings that hand those values to
 `NavigationStack`, `.sheet`, `.fullScreenCover` and friends.
 
-Every transition is a named method (`push`, `popTo(_:)`, `present`, `dismiss`),
+Every transition is a named method (`push`, `pop(to:)`, `present`, `dismiss`),
 the stored path and item are read-only from outside, and the bindings are the
 only way the system can write back. So navigation is testable without a view,
 and a screen that appears has exactly one method that could have caused it.
@@ -173,7 +173,7 @@ Reading state stays direct, without reaching for equality on an optional:
 
 ```swift
 if navigation.sheet.isPresenting(.editor) { … }
-navigation.stack.popTo(.tripList)
+navigation.stack.pop(to: .tripList)
 ```
 
 #### Keeping features independent

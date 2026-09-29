@@ -104,24 +104,29 @@ final class NavigationStateTests: XCTestCase {
         sheet.dismiss()
         XCTAssertFalse(sheet.isPresenting(.settings))
     }
-    func testPopToReturnsToAnEarlierRouteAndReportsDepth() {
+    func testPopToReturnsToAnEarlierRoute() {
         var state = StackState<TestRoute>(path: [.home, .detail(id: "a"), .detail(id: "b")])
-        XCTAssertEqual(state.depth, 3)
 
-        XCTAssertTrue(state.popTo(.home))
+        XCTAssertTrue(state.pop(to: .home))
         XCTAssertEqual(state.path, [.home])
-        XCTAssertEqual(state.depth, 1)
+    }
+
+    func testPopToARepeatedRouteStopsAtItsLastOccurrence() {
+        var state = StackState<TestRoute>(path: [.home, .detail(id: "a"), .home, .detail(id: "b")])
+
+        XCTAssertTrue(state.pop(to: .home))
+        XCTAssertEqual(state.path, [.home, .detail(id: "a"), .home])
     }
 
     func testPopToLeavesAnUnknownOrTopmostRouteAlone() {
         var state = StackState<TestRoute>(path: [.home, .detail(id: "a")])
 
         // Never visited: the caller is wrong, and emptying the stack would hide it.
-        XCTAssertFalse(state.popTo(.detail(id: "z")))
+        XCTAssertFalse(state.pop(to: .detail(id: "z")))
         XCTAssertEqual(state.path, [.home, .detail(id: "a")])
 
         // Already on top: nothing to pop.
-        XCTAssertFalse(state.popTo(.detail(id: "a")))
+        XCTAssertFalse(state.pop(to: .detail(id: "a")))
         XCTAssertEqual(state.path, [.home, .detail(id: "a")])
     }
     func testPresentationStateTransitions() {
