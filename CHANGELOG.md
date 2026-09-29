@@ -64,7 +64,8 @@ release:
 
 | 0.2.0 | 0.3.0 |
 | --- | --- |
-| `LoggerManager(subsystem:category:)` | `OSLogger(subsystem:category:)` or `OSLogger(logger:)`, a `Sendable` struct |
+| `LoggerManager(subsystem:category:)` | `OSLogger(subsystem:category:privacy:)` or `OSLogger(logger:privacy:)`, a `Sendable` struct; `privacy` is `.private` (the default) or `.public` |
+| a three-line `[ File.swift] \| Line [n]` / `Function:` / `Log:` message | the message, then `[File.swift:n function]` on the same line |
 | `warn(_:file:function:line:)` | `warning(_:file:function:line:)` |
 | a conformer implements `debug`, `info`, `error`, `fault`, `warn` | a conformer implements `log(_:_:file:function:line:)`; the level methods come from a protocol extension |
 | `Logging` (any type) | `Logging: Sendable` |
@@ -93,6 +94,9 @@ release:
   any case.
 - Logging's level methods default `#fileID`, `#function` and `#line` through
   `any Logging`.
+- `OSLogger` can log public messages (`privacy: .public`) that read on a device; the
+  default stays private. The caller's location is a one-line, always-public suffix
+  instead of a three-line banner inside the private message.
 
 ### Documentation
 

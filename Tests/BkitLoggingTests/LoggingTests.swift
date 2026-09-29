@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import os
 @testable import BkitLogging
 
 @Suite("Logging")
@@ -44,15 +45,50 @@ struct LoggingTests {
     }
 
     @Test func anOSLoggerIsSendableAndLogsThroughTheProtocol() {
-        let logger: any Logging & Sendable = OSLogger(subsystem: "BkitLoggingTests", category: "tests")
+        let logger: any Logging & Sendable = OSLogger(subsystem: "BkitLoggingTests", category: "tests", privacy: .public)
         for level in LogLevel.allCases {
             logger.log(level, "level \(level)", file: #fileID, function: #function, line: #line)
         }
         logger.warning("through the extension")
     }
 
-    @Test func anOSLoggerMessageNamesTheFileLineAndFunction() {
-        let text = OSLogger.format("Saved", file: "App/NoteStore.swift", function: "save(_:)", line: 42)
-        #expect(text == "[ NoteStore.swift] | Line [42]\nFunction: save(_:)\nLog: Saved")
+    /// What an OSLogger hands the unified log, caught at its emit seam: the message as given,
+    /// the OS level, the privacy, and a one-line location — no banner.
+    @Test func anOSLoggerWritesTheMessageWithItsPrivacyAndWhereItCameFrom() {
+        let entries = Recorded<OSLogger.Entry>()
+        let logger: any Logging = OSLogger { entries.append($0) }
+
+        let line = #line
+        logger.info("Synced 3 notes")
+        logger.warning("Retrying")
+
+        #expect(
+            entries.all == [
+                OSLogger.Entry(type: .info, privacy: .private, message: "Synced 3 notes", location: "[LoggingTests.swift:\(line + 1) \(#function)]"),
+                OSLogger.Entry(type: .error, privacy: .private, message: "Retrying", location: "[LoggingTests.swift:\(line + 2) \(#function)]"),
+            ])
     }
+
+    @Test func aPublicOSLoggerMarksItsMessagesPublic() {
+        let entries = Recorded<OSLogger.Entry>()
+        OSLogger(privacy: .public) { entries.append($0) }.debug("hello")
+        #expect(entries.all.map(\.privacy) == [.public])
+    }
+
+    @Test("each level maps to the unified log's type, as os.Logger's methods do", arguments: [
+        (LogLevel.debug, OSLogType.debug), (.info, .info), (.warning, .error), (.error, .error), (.fault, .fault),
+    ])
+    func levels(level: LogLevel, type: OSLogType) {
+        let entries = Recorded<OSLogger.Entry>()
+        OSLogger { entries.append($0) }.log(level, "m", file: "App/NoteStore.swift", function: "save(_:)", line: 42)
+        #expect(entries.all == [OSLogger.Entry(type: type, privacy: .private, message: "m", location: "[NoteStore.swift:42 save(_:)]")])
+    }
+}
+
+/// Values appended from a `@Sendable` closure.
+final class Recorded<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [Value] = []
+    var all: [Value] { lock.withLock { values } }
+    func append(_ value: Value) { lock.withLock { values.append(value) } }
 }

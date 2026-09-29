@@ -155,10 +155,26 @@ call, through `any Logging` too, so a type can take its logger as a protocol:
 ```swift
 import BkitLogging
 
-let log: any Logging = OSLogger(subsystem: "com.example.notes", category: "sync")
-log.info("Sync started")
-log.warning("Upload is being retried")
+struct SyncService {
+    let log: any Logging = OSLogger(subsystem: "com.example.notes", category: "sync")
+
+    func finish(syncing count: Int) {
+        log.info("Synced \(count) notes")  // "Synced 3 notes [SyncService.swift:7 finish(syncing:)]"
+    }
+}
 ```
+
+`OSLogger` ends each message with where it came from, on the same line. The
+unified log records a call site of its own, but for anything logged through a
+wrapper that site is the wrapper, so the caller's file, line and function are
+what lead a reader back to the code.
+
+Messages are **private by default**, as the unified log treats every dynamic
+string: they read `<private>` in Console unless a debugger is attached or the
+device is configured to reveal them. That is Apple's safe default for text that
+may hold personal data. A logger whose messages never do can opt in to
+`OSLogger(subsystem:category:privacy: .public)`, and then reads on any device.
+The location is always public.
 
 A logger of your own implements one method,
 `log(_:_:file:function:line:)`; the five level methods come with the protocol.
