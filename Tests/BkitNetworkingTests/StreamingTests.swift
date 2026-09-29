@@ -4,8 +4,8 @@ import Testing
 
 @Suite("Streaming and Server-Sent Events")
 struct StreamingTests {
-    private func collect<T>(_ stream: AsyncThrowingStream<T, any Error>) async throws -> [T] {
-        var items: [T] = []
+    private func collect<S: AsyncSequence>(_ stream: S) async throws -> [S.Element] {
+        var items: [S.Element] = []
         for try await item in stream { items.append(item) }
         return items
     }
@@ -113,6 +113,26 @@ struct StreamingTests {
     @Test func aCRLFSplitAcrossChunksIsOneLineBreak() async throws {
         let transport = FakeTransport([.stream(status: 200, chunks: [json("a\r"), json("\nb\r"), json("\n"), json("\rc")])])
         #expect(try await collect(HTTPClient(transport: transport, retry: .none).lines(Endpoint(baseURL: api))) == ["a", "b", "", "c"])
+    }
+
+    /// A block with no data dispatches no event, so the stream itself says what the last
+    /// blocks set: a client reconnects with them after the server closes.
+    @Test func theStreamKeepsTheReconnectionSettingsATrailingBlockSets() async throws {
+        let body = "id: 1\ndata: a\n\nretry: 9000\nid: 42\n\n"
+        let transport = FakeTransport([.stream(status: 200, chunks: [json(body)])])
+        let stream = HTTPClient(transport: transport, retry: .none).events(Endpoint(baseURL: api))
+        #expect(try await collect(stream) == [ServerSentEvent(data: "a", id: "1")])
+        #expect(stream.lastEventID == "42")
+        #expect(stream.reconnectionTime == 9000)
+    }
+
+    @Test func atTheTerminatorTheStreamKeepsWhatCameBeforeIt() async throws {
+        let body = "retry: 100\ndata: [DONE]\n\nretry: 200\nid: later\n\n"
+        let transport = FakeTransport([.stream(status: 200, chunks: [json(body)])])
+        let stream = HTTPClient(transport: transport, retry: .none).events(Endpoint(baseURL: api))
+        #expect(try await collect(stream).isEmpty)
+        #expect(stream.reconnectionTime == 100)
+        #expect(stream.lastEventID == nil)
     }
 
     @Test func withoutATerminatorEverythingIsYielded() async throws {

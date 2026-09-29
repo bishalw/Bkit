@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Sends `Endpoint`s: adapts each request through the interceptors, checks the status, retries
 /// what `RetryPolicy` allows, decodes, and throws only `NetworkError`.
@@ -102,19 +103,25 @@ public final class HTTPClient: Sendable {
 
     /// Server-Sent Events from a `text/event-stream` response. Ends when the server closes the
     /// stream or — when `terminator` is set — at the event whose data equals it (`[DONE]` by
-    /// default), which isn't yielded.
-    public func events(_ endpoint: Endpoint, terminator: String? = "[DONE]") -> AsyncThrowingStream<ServerSentEvent, any Error> {
+    /// default), which isn't yielded. Once it ends, the stream's `lastEventID` and
+    /// `reconnectionTime` say how to reconnect; this client doesn't do it by itself.
+    public func events(_ endpoint: Endpoint, terminator: String? = "[DONE]") -> ServerSentEventStream {
         var endpoint = endpoint
         if endpoint.headers.keys.contains(where: { $0.caseInsensitiveCompare("Accept") == .orderedSame }) == false {
             endpoint.headers["Accept"] = "text/event-stream"
         }
         let lines = lines(endpoint)
-        return AsyncThrowingStream { continuation in
+        let settings = OSAllocatedUnfairLock(initialState: ServerSentEventStream.Settings())
+        let events = AsyncThrowingStream<ServerSentEvent, any Error> { continuation in
             let task = Task {
                 do {
                     var parser = ServerSentEventParser()
                     for try await line in lines {
-                        guard let event = parser.consume(line: line) else { continue }
+                        let event = parser.consume(line: line)
+                        settings.withLock { [id = parser.lastEventID, time = parser.reconnectionTime] in
+                            $0 = ServerSentEventStream.Settings(lastEventID: id, reconnectionTime: time)
+                        }
+                        guard let event else { continue }
                         if let terminator, event.data == terminator { break }
                         continuation.yield(event)
                     }
@@ -125,6 +132,7 @@ public final class HTTPClient: Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+        return ServerSentEventStream(events: events, settings: settings)
     }
 
     // MARK: - Helpers

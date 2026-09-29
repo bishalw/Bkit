@@ -49,6 +49,7 @@ release:
 | `BkitLoggingSink(subsystem:category:)` | `OSLogSink(subsystem:category:level:)` or `OSLogSink(logger:level:)` |
 | `event.isDone` | `event.data == "[DONE]"`, or end the stream there with `events(_:terminator:)` |
 | `ServerSentEvent.retry` only on the event whose block held `retry:` | carries over to every later event, like `id`; `ServerSentEventParser.reconnectionTime` has it as soon as it arrives |
+| `events(_:terminator:) -> AsyncThrowingStream<ServerSentEvent, any Error>` | `events(_:terminator:) -> ServerSentEventStream`, an `AsyncSequence` of the same events; `for try await` is unchanged, and once it ends the stream's `lastEventID` and `reconnectionTime` say how to reconnect |
 
 `BkitNetworking` no longer depends on `BkitLogging`.
 
@@ -90,6 +91,11 @@ release:
   start of the stream is stripped; `retry:` sets the reconnection time even in a block
   with no `data:`; an empty `event:` means the default event type; a `retry:` that is
   not only ASCII digits is ignored.
+- `events(_:terminator:)` no longer loses a trailing `retry:` or `id:`: a block without
+  `data:` dispatches no event, so a server that ends with `retry: 60000` had no way to
+  reach a caller of `events`. The returned `ServerSentEventStream` keeps both settings
+  for a client that reconnects, without dropping to `lines(_:)` and a parser of its
+  own — which would also mean redoing the `Accept` header and the terminator.
 - `NetworkError.http` carries the response headers, with `header(_:)` to look one up in
   any case.
 - Logging's level methods default `#fileID`, `#function` and `#line` through

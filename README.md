@@ -104,11 +104,25 @@ struct BearerToken: RequestInterceptor {
 (multi-line `data:`, `event:`, `id:`, `retry:`, comments, a leading byte order
 mark) and by default ends at `data: [DONE]`. Decode an event with
 `event.decode(MyDelta.self)`. A non-2xx stream throws `.http` with the start of
-its body. Streams aren't retried. The stream's last event id and reconnection
-time ride on every event (`id`, `retry`); a client that reconnects after the
-stream ends feeds `lines(_:)` to its own `ServerSentEventParser` and reads
-`lastEventID` and `reconnectionTime` from it, since a `retry:` can arrive in a
-block with no data, which dispatches no event.
+its body. Streams aren't retried, and the client doesn't reconnect by itself;
+when an event stream ends, it says how to come back. `lastEventID` and
+`reconnectionTime` are the stream's, not an event's, because the block that
+sets them may carry no data and so dispatch no event:
+
+```swift
+func follow(_ feed: Endpoint, with client: HTTPClient) async throws {
+    var feed = feed
+    while !Task.isCancelled {
+        let stream = client.events(feed, terminator: nil)
+        for try await event in stream {
+            print(event.event ?? "message", event.data)
+        }
+        // The server closed the stream: come back where it says, when it says.
+        if let id = stream.lastEventID, !id.isEmpty { feed.headers["Last-Event-ID"] = id }
+        try await Task.sleep(for: .milliseconds(stream.reconnectionTime ?? 3000))
+    }
+}
+```
 
 **Logging** is off unless you pass `HTTPLogger()`, which writes to the unified
 log through `OSLogSink` (`os.Logger`, debug level, marked public so it reads on

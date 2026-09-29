@@ -36,8 +36,8 @@ public struct ServerSentEvent: Sendable, Equatable {
 /// Besides events, a stream carries two settings a client needs to reconnect: the last event
 /// id (sent back as `Last-Event-ID`) and the reconnection time. Both are kept here as they
 /// arrive, and every event carries them too. A `retry:` takes effect even in a block with no
-/// `data:` — which dispatches no event — so a client that reconnects after the stream ends
-/// reads `reconnectionTime` from its own parser, fed from `HTTPClient.lines(_:)`.
+/// `data:`, which dispatches no event, so the settings can change after the last event;
+/// `HTTPClient.events(_:terminator:)` hands them on as `ServerSentEventStream`'s.
 public struct ServerSentEventParser: Sendable {
     /// The last `id:` seen, if any. An empty `id:` sets it to "", which means none.
     public private(set) var lastEventID: String?
