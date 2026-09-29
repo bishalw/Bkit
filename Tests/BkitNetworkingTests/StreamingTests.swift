@@ -119,7 +119,6 @@ struct StreamingTests {
         let transport = FakeTransport([.stream(status: 200, chunks: [json("data: [DONE]\n\ndata: more\n\n")])])
         let events = try await collect(HTTPClient(transport: transport, retry: .none).events(Endpoint(baseURL: api), terminator: nil))
         #expect(events.map(\.data) == ["[DONE]", "more"])
-        #expect(events[0].isDone)
     }
 
     @Test func anEventDecodesItsJSON() throws {

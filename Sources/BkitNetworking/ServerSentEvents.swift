@@ -20,9 +20,6 @@ public struct ServerSentEvent: Sendable, Equatable {
         self.retry = retry
     }
 
-    /// The `data: [DONE]` sentinel several streaming APIs end with.
-    public var isDone: Bool { data == "[DONE]" }
-
     /// The data decoded as JSON.
     public func decode<T: Decodable>(_ type: T.Type = T.self, decoder: JSONDecoder = JSONDecoder()) throws(NetworkError) -> T {
         do {
