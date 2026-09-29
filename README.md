@@ -1,9 +1,9 @@
 # Bkit
 
 Bkit is a small set of Swift packages for iOS and macOS apps: an HTTP client
-(`BkitNetworking`), logging (`BkitLogging`), `UserDefaults`-backed property
-wrappers (`BkitStorage`), and navigation state (`BkitNavigation`). Each is its own
-library product, so an app links only what it uses.
+(`BkitNetworking`), logging (`BkitLogging`) and navigation state
+(`BkitNavigation`). Each is its own library product, so an app links only what
+it uses.
 
 ## Requirements
 
