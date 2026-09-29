@@ -240,6 +240,39 @@ struct HTTPClientTests {
         }
     }
 
+    @Test func queryValuesAreRedactedUnlessAllowed() async throws {
+        let sink = RecordingSink()
+        let transport = FakeTransport([.response(status: 200), .failure(URLError(.cannotFindHost))])
+        let endpoint = Endpoint(
+            baseURL: api, path: "notes",
+            query: [
+                URLQueryItem(name: "api_key", value: "s3cret"), URLQueryItem(name: "page", value: "2"),
+                URLQueryItem(name: "q", value: "tax return"), URLQueryItem(name: "draft", value: nil),
+            ])
+        let logger = HTTPLogger(sink: sink, unredactedQueryItems: ["page"])
+        try await client(transport, logger: logger).send(endpoint)
+        _ = try? await client(transport, logger: logger).send(endpoint)
+        let log = sink.written.joined(separator: "\n")
+        let redacted = "https://api.example.com/notes?api_key=<redacted>&page=2&q=<redacted>&draft"
+        #expect(log.contains("→ GET \(redacted)"))
+        #expect(log.contains("← 200 GET \(redacted)"))
+        #expect(log.contains("✕ GET \(redacted):"))
+        for secret in ["s3cret", "tax", "return"] {
+            #expect(!log.contains(secret), "\(secret)")
+        }
+    }
+
+    @Test("a URL is logged with query values redacted", arguments: [
+        ("https://api.example.com/v1/notes", "https://api.example.com/v1/notes"),
+        ("https://api.example.com/notes?token=abc&page=3", "https://api.example.com/notes?token=<redacted>&page=3"),
+        ("https://api.example.com/notes?a%20b=1&empty=&flag", "https://api.example.com/notes?a%20b=<redacted>&empty=<redacted>&flag"),
+        ("https://api.example.com/cb?code=xyz#access_token=abc", "https://api.example.com/cb?code=<redacted>"),
+        ("http://localhost:8080/notes?key=k", "http://localhost:8080/notes?key=<redacted>"),
+    ])
+    func loggedURL(url: String, expected: String) {
+        #expect(HTTPLogger(sink: RecordingSink(), unredactedQueryItems: ["page"]).redacted(URL(string: url)) == expected)
+    }
+
     @Test func bodiesAreLoggedOnlyWhenAskedFor() async throws {
         let sink = RecordingSink()
         let transport = FakeTransport([.response(status: 200, body: json("pong"))])

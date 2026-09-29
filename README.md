@@ -94,7 +94,9 @@ its body. Streams aren't retried.
 
 **Logging** is off unless you pass `HTTPLogger()` (os.Logger through
 BkitLogging). `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie`
-values are always redacted; bodies are logged only with `includesBodies: true`.
+values are always redacted, and so is every query value unless its name is in
+`unredactedQueryItems` (`?api_key=<redacted>&page=2`); bodies are logged only with
+`includesBodies: true`.
 
 **Testing.** Everything network-facing goes through `HTTPTransport`, so tests
 hand the client a fake and check both the requests it made and how it handled
