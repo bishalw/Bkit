@@ -76,8 +76,7 @@ public struct HTTPLogger: Sendable {
 
     func response(_ response: HTTPURLResponse, body: Data?, for request: URLRequest) {
         var line = "← \(response.statusCode) \(request.httpMethod ?? "GET") \(redacted(request.url))"
-        let headers = response.allHeaderFields.reduce(into: [String: String]()) { $0["\($1.key)"] = "\($1.value)" }
-        line += headerText(headers)
+        line += headerText(response.headerFields)
         if includesBodies, let body, !body.isEmpty { line += "\n" + String(decoding: body, as: UTF8.self) }
         sink.write(line)
     }

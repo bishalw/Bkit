@@ -11,8 +11,12 @@ public enum NetworkError: Error, Sendable, Equatable, LocalizedError {
     case timedOut
     /// No connection, or it dropped mid-request.
     case offline
-    /// The server answered outside 2xx. `body` is what it sent (capped for streams).
-    case http(status: Int, body: Data, url: URL?)
+    /// The server answered outside 2xx. `headers` are the response's, for what a server says
+    /// there (`Retry-After`, `WWW-Authenticate`, a request id); `body` is what it sent
+    /// (capped for streams). Header names are as Foundation reports them, which may change
+    /// their case ("Www-Authenticate"), so look one up with `header(_:)`. `headers` defaults
+    /// to empty, so a test can build one without.
+    case http(status: Int, headers: [String: String] = [:], body: Data, url: URL?)
     /// A 2xx body that didn't decode as `type`. `underlying` describes the `DecodingError`.
     case decoding(type: String, underlying: String)
     /// Any other URL-loading failure.
@@ -39,13 +43,21 @@ public enum NetworkError: Error, Sendable, Equatable, LocalizedError {
 
     /// The status of an `http` error.
     public var status: Int? {
-        if case .http(let status, _, _) = self { return status }
+        if case .http(let status, _, _, _) = self { return status }
         return nil
+    }
+
+    /// A response header of an `http` error, by name in any case (`"retry-after"` finds
+    /// `Retry-After`), as HTTP header names are case-insensitive.
+    public func header(_ name: String) -> String? {
+        guard case .http(_, let headers, _, _) = self else { return nil }
+        if let value = headers[name] { return value }
+        return headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
     }
 
     /// The body of an `http` error as UTF-8 text, for logs and messages.
     public var bodyText: String? {
-        guard case .http(_, let body, _) = self, !body.isEmpty else { return nil }
+        guard case .http(_, _, let body, _) = self, !body.isEmpty else { return nil }
         return String(decoding: body, as: UTF8.self)
     }
 
@@ -55,10 +67,17 @@ public enum NetworkError: Error, Sendable, Equatable, LocalizedError {
         case .cancelled: "The request was cancelled."
         case .timedOut: "The request timed out."
         case .offline: "You're offline."
-        case .http(let status, _, let url):
+        case .http(let status, _, _, let url):
             "The server answered \(status) \(HTTPURLResponse.localizedString(forStatusCode: status))\(url.map { " for \($0.absoluteString)" } ?? "")."
         case .decoding(let type, let underlying): "The response couldn't be read as \(type): \(underlying)"
         case .transport(let error): error.localizedDescription
         }
+    }
+}
+
+extension HTTPURLResponse {
+    /// `allHeaderFields` as strings, the way `NetworkError.http` and the logger keep them.
+    var headerFields: [String: String] {
+        allHeaderFields.reduce(into: [String: String]()) { $0["\($1.key)"] = "\($1.value)" }
     }
 }

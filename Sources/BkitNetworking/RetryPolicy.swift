@@ -75,7 +75,7 @@ public struct RetryPolicy: Sendable {
     public func shouldRetry(_ error: NetworkError, method: HTTPMethod, attempt: Int) -> Bool {
         guard attempt < maxAttempts, method.isIdempotent || retriesNonIdempotent else { return false }
         switch error {
-        case .http(let status, _, _): return retryableStatuses.contains(status)
+        case .http(let status, _, _, _): return retryableStatuses.contains(status)
         case .timedOut: return true
         case .transport(let error): return Self.transientErrors.contains(error.code)
         case .offline, .cancelled, .invalidURL, .decoding: return false

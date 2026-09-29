@@ -43,7 +43,8 @@ public final class HTTPClient: Sendable {
         }
     }
 
-    /// The raw 2xx response. Anything else throws `.http(status:body:url:)` with the body.
+    /// The raw 2xx response. Anything else throws `.http(status:headers:body:url:)` with the
+    /// response's headers and body.
     @discardableResult
     public func send(_ endpoint: Endpoint) async throws(NetworkError) -> (Data, HTTPURLResponse) {
         let base = try endpoint.urlRequest()
@@ -58,7 +59,7 @@ public final class HTTPClient: Sendable {
                 let (data, response) = try await transport.data(for: request)
                 logger?.response(response, body: data, for: request)
                 if (200..<300).contains(response.statusCode) { return (data, response) }
-                error = .http(status: response.statusCode, body: data, url: response.url ?? request.url)
+                error = .http(status: response.statusCode, headers: response.headerFields, body: data, url: response.url ?? request.url)
                 retryAfter = RetryPolicy.retryAfter(response.value(forHTTPHeaderField: "Retry-After"))
             } catch let caught {
                 error = NetworkError(caught)
@@ -149,7 +150,7 @@ public final class HTTPClient: Sendable {
                 body.append(byte)
                 if body.count >= Self.streamErrorBodyLimit { break }
             }
-            throw NetworkError.http(status: response.statusCode, body: body, url: response.url ?? request.url)
+            throw NetworkError.http(status: response.statusCode, headers: response.headerFields, body: body, url: response.url ?? request.url)
         }
         return bytes
     }

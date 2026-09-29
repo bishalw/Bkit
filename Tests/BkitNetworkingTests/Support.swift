@@ -7,7 +7,7 @@ final class FakeTransport: HTTPTransport {
         case response(status: Int, body: Data = Data(), headers: [String: String] = [:])
         case failure(URLError)
         /// A streamed body, delivered in these chunks.
-        case stream(status: Int, chunks: [Data])
+        case stream(status: Int, chunks: [Data], headers: [String: String] = [:])
     }
 
     private let state: Locked<(answers: [Answer], requests: [URLRequest])>
@@ -29,17 +29,17 @@ final class FakeTransport: HTTPTransport {
         switch next(request) {
         case .response(let status, let body, let headers): return (body, Self.response(request, status, headers))
         case .failure(let error): throw error
-        case .stream(let status, let chunks): return (chunks.reduce(Data(), +), Self.response(request, status, [:]))
+        case .stream(let status, let chunks, let headers): return (chunks.reduce(Data(), +), Self.response(request, status, headers))
         }
     }
 
     func bytes(for request: URLRequest) async throws -> (AsyncThrowingStream<UInt8, any Error>, HTTPURLResponse) {
         let answer = next(request)
-        let (status, chunks): (Int, [Data])
+        let (status, chunks, headers): (Int, [Data], [String: String])
         switch answer {
-        case .response(let code, let body, _): (status, chunks) = (code, [body])
+        case .response(let code, let body, let fields): (status, chunks, headers) = (code, [body], fields)
         case .failure(let error): throw error
-        case .stream(let code, let parts): (status, chunks) = (code, parts)
+        case .stream(let code, let parts, let fields): (status, chunks, headers) = (code, parts, fields)
         }
         let stream = AsyncThrowingStream<UInt8, any Error> { continuation in
             for chunk in chunks {
@@ -47,7 +47,7 @@ final class FakeTransport: HTTPTransport {
             }
             continuation.finish()
         }
-        return (stream, Self.response(request, status, [:]))
+        return (stream, Self.response(request, status, headers))
     }
 
     private static func response(_ request: URLRequest, _ status: Int, _ headers: [String: String]) -> HTTPURLResponse {

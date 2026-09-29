@@ -48,8 +48,9 @@ let endpoint = Endpoint(
 
 do {
     let rates = try await client.send(endpoint, as: [Rate].self)
-} catch .http(let status, let body, _) {
-    // Any non-2xx answer, with what the server said.
+} catch .http(let status, let headers, let body, _) {
+    // Any non-2xx answer, with what the server said. error.header("Retry-After")
+    // looks one header up in any case.
 } catch .offline {
     // No connection: show it, don't retry in a loop.
 } catch {

@@ -139,6 +139,13 @@ struct StreamingTests {
         }
     }
 
+    @Test func aNon2xxStreamCarriesTheResponseHeaders() async {
+        let transport = FakeTransport([.stream(status: 503, chunks: [json("busy")], headers: ["Retry-After": "7"])])
+        await #expect(throws: NetworkError.http(status: 503, headers: ["Retry-After": "7"], body: json("busy"), url: api)) {
+            _ = try await collect(HTTPClient(transport: transport, retry: .none).lines(Endpoint(baseURL: api)))
+        }
+    }
+
     @Test func aStreamErrorBodyIsCapped() async throws {
         let big = Data(repeating: 0x41, count: HTTPClient.streamErrorBodyLimit * 2)
         let transport = FakeTransport([.stream(status: 500, chunks: [big])])
@@ -146,7 +153,7 @@ struct StreamingTests {
             _ = try await collect(HTTPClient(transport: transport, retry: .none).lines(Endpoint(baseURL: api)))
             Issue.record("expected an error")
         } catch let error as NetworkError {
-            guard case .http(500, let body, _) = error else {
+            guard case .http(500, _, let body, _) = error else {
                 Issue.record("got \(error)")
                 return
             }

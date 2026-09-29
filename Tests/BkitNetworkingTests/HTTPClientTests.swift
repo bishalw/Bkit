@@ -39,11 +39,27 @@ struct HTTPClientTests {
         do {
             _ = try await client(transport).send(Endpoint(baseURL: api), as: [Rate].self)
             Issue.record("expected an error")
-        } catch .http(let status, let body, _) {
+        } catch .http(let status, _, let body, _) {
             #expect(status == 418)
             #expect(body == json("teapot"))
         } catch {
             Issue.record("got \(error)")
+        }
+    }
+
+    @Test func aNon2xxErrorCarriesTheResponseHeaders() async {
+        let headers = ["Retry-After": "3600", "WWW-Authenticate": #"Bearer error="invalid_token""#, "X-Request-ID": "r-42"]
+        let transport = FakeTransport([.response(status: 401, headers: headers)])
+        do {
+            try await client(transport).send(Endpoint(baseURL: api))
+            Issue.record("expected an error")
+        } catch {
+            #expect(error.status == 401)
+            #expect(error.header("x-request-id") == "r-42")
+            // Foundation reports this one as "Www-Authenticate": look headers up with header(_:).
+            #expect(error.header("WWW-Authenticate") == #"Bearer error="invalid_token""#)
+            #expect(error.header("Content-Type") == nil)
+            #expect(NetworkError.timedOut.header("Retry-After") == nil)
         }
     }
 
