@@ -19,7 +19,7 @@ it uses.
 Add the package in Xcode (`File → Add Package Dependencies…`, with
 `https://github.com/bishalw/Bkit.git`) or in `Package.swift`:
 
-```swift
+```swift manifest
 dependencies: [
     .package(url: "https://github.com/bishalw/Bkit.git", from: "0.3.0"),
 ],
@@ -27,7 +27,7 @@ dependencies: [
 
 then depend on the products you need:
 
-```swift
+```swift manifest
 .product(name: "BkitNetworking", package: "Bkit")
 ```
 
@@ -42,6 +42,7 @@ decodes, and throws only `NetworkError`.
 
 ```swift
 import BkitNetworking
+import Foundation
 
 struct Note: Decodable, Sendable {
     let id: Int
@@ -50,26 +51,35 @@ struct Note: Decodable, Sendable {
 
 let client = HTTPClient(retry: RetryPolicy(maxAttempts: 2))
 
-let endpoint = Endpoint(
+let inbox = Endpoint(
     .get,
     baseURL: URL(string: "https://api.example.com")!,
     path: "/v1/notes",                                   // joined with exactly one "/"
     query: [URLQueryItem(name: "folder", value: "inbox")] // percent-encoded, "+" included
 )
 
-do {
-    let notes = try await client.send(endpoint, as: [Note].self)
-} catch .http(let status, let headers, let body, _) {
-    // Any non-2xx answer, with the response's headers and what the server said.
-} catch .offline {
-    // No connection: show it, don't retry in a loop.
-} catch {
-    // .timedOut, .cancelled, .decoding(type:underlying:), .transport(URLError), .invalidURL
+enum InboxState {
+    case notes([Note])
+    case empty
+    case offline
+    case failed(NetworkError)
+}
+
+func loadInbox() async -> InboxState {
+    do {
+        return .notes(try await client.send(inbox, as: [Note].self))
+    } catch .http(404, _, _, _) {
+        return .empty           // any non-2xx: match its status, headers or body
+    } catch .offline {
+        return .offline         // no connection: show it, don't retry in a loop
+    } catch {
+        return .failed(error)   // .http, .timedOut, .cancelled, .decoding, .transport, .invalidURL
+    }
 }
 ```
 
 `send` uses typed throws (`throws(NetworkError)`), so the `catch` clauses above
-match cases directly. `error.header("Retry-After")` looks up a header of an
+match cases directly, and `error` in the last one is a `NetworkError`. `error.header("Retry-After")` looks up a header of an
 `.http` error in any case, and `error.status` and `error.bodyText` read the
 rest. `send(_:)` without a type returns the raw
 `(Data, HTTPURLResponse)` of a 2xx response.
@@ -154,10 +164,15 @@ struct CannedTransport: HTTPTransport {
     }
 }
 
-let client = HTTPClient(
-    transport: CannedTransport(status: 503, body: Data()),
-    retry: RetryPolicy(maxAttempts: 3, sleeper: .init { _ in })  // no real waiting
-)
+@Test func anUnavailableServerIsAnError() async throws {
+    let client = HTTPClient(
+        transport: CannedTransport(status: 503, body: Data()),
+        retry: RetryPolicy(maxAttempts: 3, sleeper: .init { _ in })  // no real waiting
+    )
+    await #expect(throws: NetworkError.http(status: 503, body: Data(), url: try inbox.url())) {
+        try await client.send(inbox)
+    }
+}
 ```
 
 ### Logging
@@ -232,7 +247,7 @@ struct NoteNavigation: Equatable, Sendable {
 Reading state stays direct, without reaching for equality on an optional:
 
 ```swift
-if navigation.sheet.isPresenting(.newNote) { … }
+let isComposing = navigation.sheet.isPresenting(.newNote)
 navigation.stack.pop(to: .folder(id: inboxID))
 ```
 
@@ -300,9 +315,6 @@ needs iOS 17; on iOS 16 an `ObservableObject` with `@Published var flow` works
 the same way):
 
 ```swift
-import BkitNavigation
-import SwiftUI
-
 @Observable
 @MainActor
 final class LibraryRouter {
@@ -381,8 +393,13 @@ however the sheet went: the owner calling `dismiss()`, or a swipe down or the
 environment's `dismiss` action, which both arrive as `replace(with: nil)`.
 
 ```swift
-.sheet(item: $model.nav.sheet.item, onDismiss: model.sheetDidDismiss) { … }
+// In the view:
+.sheet(item: $model.nav.sheet.item, onDismiss: model.sheetDidDismiss) { sheet in
+    LibrarySheetView(sheet: sheet)
+}
+```
 
+```swift
 // In the model:
 func sheetDidDismiss() {
     guard let id = createdNoteID else { return }
@@ -399,11 +416,14 @@ owner, when it presents the item — not inside the `.sheet` closure, which runs
 again every time the presenter's body does:
 
 ```swift
+// In the model:
 func compose() {
     composer = ComposerModel()  // stored on the owner
     nav.sheet.present(.newNote)
 }
+```
 
+```swift
 // In the view:
 case .newNote:
     if let composer = model.composer { ComposerView(model: composer) }
@@ -421,3 +441,12 @@ are `Array` calls, and the library deliberately does not wrap them:
 let isEditing = model.nav.stack.path.contains(.editor(noteID: id))
 let top = model.nav.stack.path.last
 ```
+
+## Development
+
+`swift test` runs every target's tests. `ReadmeSnippetTests` compiles each
+` ```swift ` block in this README (and runs the one that is a test), and fails
+if a block here and its copy in `Tests/ReadmeSnippetTests` drift apart, so
+change both together. ` ```swift manifest ` blocks are `Package.swift`
+fragments; they are checked against the package's products and the
+changelog's latest version instead.

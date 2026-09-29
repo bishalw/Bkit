@@ -106,6 +106,10 @@ release:
 
 ### Documentation
 
-- The README's examples use app-neutral names and compile as written.
+- The README's examples use app-neutral names and compile as written: a
+  `ReadmeSnippetTests` target compiles every ` ```swift ` block (and runs the one that is
+  a test), and fails when the README and its copy drift apart. The `Package.swift`
+  fragments, fenced ` ```swift manifest `, are checked against the package's products and
+  this file's latest version.
 - The comment on why the SwiftUI binding extensions win over `Binding`'s dynamic member
   lookup now gives the real reason.
