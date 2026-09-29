@@ -21,5 +21,6 @@ let package = Package(
         .target(name: "BkitNavigation"),
         .testTarget(name: "BkitNetworkingTests", dependencies: ["BkitNetworking"]),
         .testTarget(name: "BkitNavigationTests", dependencies: ["BkitNavigation"]),
+        .testTarget(name: "BkitLoggingTests", dependencies: ["BkitLogging"]),
     ]
 )
