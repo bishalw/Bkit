@@ -6,15 +6,15 @@ final class NavigationStateTests: XCTestCase {
     func testStackStatePushPopAndReplace() {
         var state = StackState(path: [TestRoute.home])
 
-        state.push(.detail(id: "trip-1"))
-        XCTAssertEqual(state.path, [.home, .detail(id: "trip-1")])
+        state.push(.detail(id: "note-1"))
+        XCTAssertEqual(state.path, [.home, .detail(id: "note-1")])
 
         let popped = state.pop()
-        XCTAssertEqual(popped, .detail(id: "trip-1"))
+        XCTAssertEqual(popped, .detail(id: "note-1"))
         XCTAssertEqual(state.path, [.home])
 
-        state.replace(with: [.home, .detail(id: "trip-2")])
-        XCTAssertEqual(state.path, [.home, .detail(id: "trip-2")])
+        state.replace(with: [.home, .detail(id: "note-2")])
+        XCTAssertEqual(state.path, [.home, .detail(id: "note-2")])
 
         state.popToRoot()
         XCTAssertTrue(state.isEmpty)
@@ -75,9 +75,9 @@ final class NavigationStateTests: XCTestCase {
             set: { newValue in state.value = newValue }
         )
 
-        binding.path.wrappedValue = [.home, .detail(id: "trip-2")]
+        binding.path.wrappedValue = [.home, .detail(id: "note-2")]
 
-        XCTAssertEqual(state.value.path, [.home, .detail(id: "trip-2")])
+        XCTAssertEqual(state.value.path, [.home, .detail(id: "note-2")])
     }
 
     func testPresentationBindingMutatesUnderlyingState() {
@@ -93,6 +93,45 @@ final class NavigationStateTests: XCTestCase {
         binding.item.wrappedValue = nil
         XCTAssertNil(sheet.value.item)
     }
+    /// What `$model.flow.stack.path` and `$model.flow.sheet.item` do in a view: the
+    /// bindings reach through the flow's stored properties, and a swipe back or a sheet
+    /// dismissal writes the whole flow back with only that surface changed.
+    func testFlowBindingsWriteBackThroughTheFlow() {
+        let flow = Box(FlowState<TestRoute, TestModal, TestModal>(stack: StackState(path: [.home, .detail(id: "a")])))
+        let binding = Binding<FlowState<TestRoute, TestModal, TestModal>>(
+            get: { flow.value },
+            set: { newValue in flow.value = newValue }
+        )
+        flow.value.sheet.present(.composer)
+
+        binding.stack.path.wrappedValue = [.home]  // a swipe back
+        XCTAssertEqual(flow.value.stack.path, [.home])
+        XCTAssertEqual(flow.value.sheet.item, .composer)
+
+        binding.sheet.item.wrappedValue = nil  // a swipe down
+        XCTAssertNil(flow.value.sheet.item)
+        XCTAssertEqual(flow.value.stack.path, [.home])
+
+        binding.fullScreen.item.wrappedValue = .settings
+        XCTAssertEqual(flow.value, FlowState(stack: StackState(path: [.home]), fullScreen: FullScreenCoverState(item: .settings)))
+    }
+
+    /// The `nil` SwiftUI writes back on an interactive dismissal.
+    func testReplacingWithNilAfterPresentingDismisses() {
+        var sheet = SheetState<TestModal>()
+        sheet.present(.composer)
+        sheet.replace(with: nil)
+        XCTAssertNil(sheet.item)
+        XCTAssertFalse(sheet.isPresented)
+        XCTAssertEqual(sheet, SheetState())
+
+        var cover = FullScreenCoverState<TestModal>()
+        cover.present(.settings)
+        cover.replace(with: nil)
+        XCTAssertNil(cover.item)
+        XCTAssertFalse(cover.isPresented)
+    }
+
     func testIsPresentingMatchesOnlyThePresentedItem() {
         var sheet = SheetState<TestModal>()
         XCTAssertFalse(sheet.isPresenting(.settings))
