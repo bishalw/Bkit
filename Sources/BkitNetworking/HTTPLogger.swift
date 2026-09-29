@@ -1,22 +1,35 @@
-import BkitLogging
 import Foundation
+import os
 
-/// Where `HTTPLogger` writes. `BkitLoggingSink` (os.Logger through BkitLogging) in apps; a
-/// recording sink in tests.
+/// Where `HTTPLogger` writes. `OSLogSink` (the unified log) in apps; a recording sink in tests.
 public protocol HTTPLogSink: Sendable {
     func write(_ line: String)
 }
 
-/// Writes through BkitLogging's `LoggerManager` at debug level.
-public struct BkitLoggingSink: HTTPLogSink {
-    private let logger: LoggerManager
+/// Writes each line to the unified log through `os.Logger`, at debug level by default.
+///
+/// The line goes in verbatim and marked public. That is safe because `HTTPLogger` has
+/// already redacted it — credential headers, query values, and bodies unless asked for — and
+/// necessary, because a dynamic string logged without a privacy level shows as `<private>`
+/// everywhere but under a debugger, which would make the log useless on a device.
+public struct OSLogSink: HTTPLogSink {
+    private let emit: @Sendable (String) -> Void
 
-    public init(subsystem: String = "BkitNetworking", category: String = "http") {
-        logger = LoggerManager(subsystem: subsystem, category: category)
+    public init(subsystem: String = "BkitNetworking", category: String = "http", level: OSLogType = .debug) {
+        self.init(logger: Logger(subsystem: subsystem, category: category), level: level)
+    }
+
+    public init(logger: Logger, level: OSLogType = .debug) {
+        emit = { line in logger.log(level: level, "\(line, privacy: .public)") }
+    }
+
+    /// Hands each line to `emit` instead of the unified log, for tests.
+    init(emit: @escaping @Sendable (String) -> Void) {
+        self.emit = emit
     }
 
     public func write(_ line: String) {
-        logger.debug(line)
+        emit(line)
     }
 }
 
@@ -42,7 +55,7 @@ public struct HTTPLogger: Sendable {
     public var unredactedQueryItems: Set<String>
 
     public init(
-        sink: any HTTPLogSink = BkitLoggingSink(),
+        sink: any HTTPLogSink = OSLogSink(),
         includesBodies: Bool = false,
         redactedHeaders: Set<String> = defaultRedactedHeaders,
         unredactedQueryItems: Set<String> = []

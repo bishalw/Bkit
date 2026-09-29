@@ -15,7 +15,7 @@ let package = Package(
         .library(name: "BkitNavigation", targets: ["BkitNavigation"]),
     ],
     targets: [
-        .target(name: "BkitNetworking", dependencies: ["BkitLogging"]),
+        .target(name: "BkitNetworking"),
         .target(name: "BkitLogging"),
         .target(name: "BkitStorage"),
         .target(name: "BkitNavigation"),

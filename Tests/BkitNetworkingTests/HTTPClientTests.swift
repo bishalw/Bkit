@@ -273,6 +273,16 @@ struct HTTPClientTests {
         #expect(HTTPLogger(sink: RecordingSink(), unredactedQueryItems: ["page"]).redacted(URL(string: url)) == expected)
     }
 
+    /// The unified-log sink writes the logger's line as it is: no file, function or line banner
+    /// around it (the os.Logger call itself isn't observable from a test).
+    @Test func theOSLogSinkWritesTheLineVerbatim() async throws {
+        let emitted = Locked<[String]>([])
+        let sink = OSLogSink { line in emitted.withLock { $0.append(line) } }
+        let transport = FakeTransport([.response(status: 204)])
+        try await client(transport, logger: HTTPLogger(sink: sink)).send(Endpoint(baseURL: api, path: "notes"))
+        #expect(emitted.withLock { $0 } == ["→ GET https://api.example.com/notes", "← 204 GET https://api.example.com/notes"])
+    }
+
     @Test func bodiesAreLoggedOnlyWhenAskedFor() async throws {
         let sink = RecordingSink()
         let transport = FakeTransport([.response(status: 200, body: json("pong"))])

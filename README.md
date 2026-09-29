@@ -92,8 +92,9 @@ struct BearerToken: RequestInterceptor {
 `event.decode(MyDelta.self)`. A non-2xx stream throws `.http` with the start of
 its body. Streams aren't retried.
 
-**Logging** is off unless you pass `HTTPLogger()` (os.Logger through
-BkitLogging). `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie`
+**Logging** is off unless you pass `HTTPLogger()`, which writes to the unified
+log through `OSLogSink` (`os.Logger`, debug level, marked public so it reads on
+a device — it is redacted before it gets there). `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie`
 values are always redacted, and so is every query value unless its name is in
 `unredactedQueryItems` (`?api_key=<redacted>&page=2`); bodies are logged only with
 `includesBodies: true`.
