@@ -7,7 +7,7 @@ it uses.
 
 ## Requirements
 
-- iOS 16+ / macOS 13+
+- iOS 16+ and macOS 13+ (the only platforms the package declares)
 - Swift 6 (swift-tools-version 6.0; every target builds in the Swift 6 language
   mode with strict concurrency checking)
 - Xcode 16+
@@ -16,12 +16,23 @@ it uses.
 
 ### Swift Package Manager
 
-Add the package in Xcode (`File → Add Package Dependencies…`) or in
-`Package.swift`, then depend on the products you need:
+Add the package in Xcode (`File → Add Package Dependencies…`, with
+`https://github.com/bishalw/Bkit.git`) or in `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/bishalw/Bkit.git", from: "0.3.0"),
+],
+```
+
+then depend on the products you need:
 
 ```swift
 .product(name: "BkitNetworking", package: "Bkit")
 ```
+
+Until 1.0, a minor release may break the API; `CHANGELOG.md` lists every
+change with a migration table.
 
 ### Networking
 
@@ -32,25 +43,24 @@ decodes, and throws only `NetworkError`.
 ```swift
 import BkitNetworking
 
-struct Rate: Decodable, Sendable {
-    let quote: String
-    let rate: Double
+struct Note: Decodable, Sendable {
+    let id: Int
+    let title: String
 }
 
 let client = HTTPClient(retry: RetryPolicy(maxAttempts: 2))
 
 let endpoint = Endpoint(
     .get,
-    baseURL: URL(string: "https://api.frankfurter.dev")!,
-    path: "/v2/rates",                               // joined with exactly one "/"
-    query: [URLQueryItem(name: "base", value: "USD")] // percent-encoded, "+" included
+    baseURL: URL(string: "https://api.example.com")!,
+    path: "/v1/notes",                                   // joined with exactly one "/"
+    query: [URLQueryItem(name: "folder", value: "inbox")] // percent-encoded, "+" included
 )
 
 do {
-    let rates = try await client.send(endpoint, as: [Rate].self)
+    let notes = try await client.send(endpoint, as: [Note].self)
 } catch .http(let status, let headers, let body, _) {
-    // Any non-2xx answer, with what the server said. error.header("Retry-After")
-    // looks one header up in any case.
+    // Any non-2xx answer, with the response's headers and what the server said.
 } catch .offline {
     // No connection: show it, don't retry in a loop.
 } catch {
@@ -59,7 +69,9 @@ do {
 ```
 
 `send` uses typed throws (`throws(NetworkError)`), so the `catch` clauses above
-match cases directly. `send(_:)` without a type returns the raw
+match cases directly. `error.header("Retry-After")` looks up a header of an
+`.http` error in any case, and `error.status` and `error.bodyText` read the
+rest. `send(_:)` without a type returns the raw
 `(Data, HTTPURLResponse)` of a 2xx response.
 
 **Bodies** set their own `Content-Type`: `.json(data)`,
@@ -100,10 +112,11 @@ block with no data, which dispatches no event.
 
 **Logging** is off unless you pass `HTTPLogger()`, which writes to the unified
 log through `OSLogSink` (`os.Logger`, debug level, marked public so it reads on
-a device — it is redacted before it gets there). `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie`
-values are always redacted, and so is every query value unless its name is in
-`unredactedQueryItems` (`?api_key=<redacted>&page=2`); bodies are logged only with
-`includesBodies: true`.
+a device — it is redacted before it gets there). `Authorization`,
+`Proxy-Authorization`, `Cookie` and `Set-Cookie` values are always redacted,
+and so is every query value unless its name is in `unredactedQueryItems`
+(`?api_key=<redacted>&page=2`); bodies are logged only with
+`includesBodies: true`, and then as they are, so keep that to debug builds.
 
 **Testing.** Everything network-facing goes through `HTTPTransport`, so tests
 hand the client a fake and check both the requests it made and how it handled
@@ -133,6 +146,23 @@ let client = HTTPClient(
 )
 ```
 
+### Logging
+
+`BkitLogging` is a `Logging` protocol and `OSLogger`, which writes to the
+unified log. The level methods fill in the file, function and line of the
+call, through `any Logging` too, so a type can take its logger as a protocol:
+
+```swift
+import BkitLogging
+
+let log: any Logging = OSLogger(subsystem: "com.example.notes", category: "sync")
+log.info("Sync started")
+log.warning("Upload is being retried")
+```
+
+A logger of your own implements one method,
+`log(_:_:file:function:line:)`; the five level methods come with the protocol.
+
 ### Navigation
 
 `BkitNavigation` models navigation *state*. It gives a feature value types for
@@ -158,22 +188,22 @@ values, and an app-specific flow reads better than a bundle with unused
 parameters:
 
 ```swift
-struct TripListNavigation: Equatable {
-    var stack = StackState<TripsRoute>()
-    var sheet = SheetState<TripsSheet>()
+struct LibraryNavigation: Equatable, Sendable {
+    var stack = StackState<LibraryRoute>()
+    var sheet = SheetState<LibrarySheet>()
 }
 
-struct TripDetailNavigation: Equatable {
-    var sheet = SheetState<TripDetailSheet>()
-    var map = PresentationFlag()
+struct NoteNavigation: Equatable, Sendable {
+    var sheet = SheetState<LibrarySheet>()
+    var inspector = PresentationFlag()
 }
 ```
 
 Reading state stays direct, without reaching for equality on an optional:
 
 ```swift
-if navigation.sheet.isPresenting(.editor) { … }
-navigation.stack.pop(to: .tripList)
+if navigation.sheet.isPresenting(.newNote) { … }
+navigation.stack.pop(to: .folder(id: inboxID))
 ```
 
 #### Keeping features independent
@@ -188,20 +218,28 @@ Instead, let each feature module own its own flow, over routes only it knows
 about:
 
 ```swift
-// In the Trips feature module.
-public enum TripsRoute: Hashable {
-    case tripDetail(id: String)
-    case itinerary(tripID: String)
+// In the Library feature module.
+public enum LibraryRoute: Hashable, Sendable {
+    case folder(id: UUID)
+    case note(id: UUID)
+    case editor(noteID: UUID)
 }
 
-public enum TripsSheet: Identifiable, Equatable {
-    case newTrip
+public enum LibrarySheet: Identifiable, Equatable, Sendable {
+    case newNote
+    case share(noteID: UUID)
 
-    public var id: String { "newTrip" }
+    public var id: String {
+        switch self {
+        case .newNote: "newNote"
+        case .share(let noteID): "share-\(noteID)"
+        }
+    }
 }
 ```
 
-A feature with no modal surfaces says so with `StackFlowState<TripsRoute>`,
+Routes, sheets and covers must be `Sendable`, like the states that hold them.
+A feature with no modal surfaces says so with `StackFlowState<LibraryRoute>`,
 rather than naming sheet and cover types it never presents.
 
 When a feature needs to send the user somewhere it cannot reach — settings,
@@ -237,15 +275,15 @@ import SwiftUI
 
 @Observable
 @MainActor
-final class TripsRouter {
-    var flow = FlowState<TripsRoute, TripsSheet, NoPresentation>()
+final class LibraryRouter {
+    var flow = FlowState<LibraryRoute, LibrarySheet, NoPresentation>()
 
-    func showTrip(id: String) {
-        flow.stack.push(.tripDetail(id: id))
+    func showNote(id: UUID) {
+        flow.stack.push(.note(id: id))
     }
 
-    func composeTrip() {
-        flow.sheet.present(.newTrip)
+    func composeNote() {
+        flow.sheet.present(.newNote)
     }
 }
 ```
@@ -253,25 +291,29 @@ final class TripsRouter {
 #### Using it in a view
 
 ```swift
-struct TripsView: View {
-    @State private var router = TripsRouter()
+struct LibraryView: View {
+    @State private var router = LibraryRouter()
 
     var body: some View {
         NavigationStack(path: $router.flow.stack.path) {
-            TripsListView(onSelect: router.showTrip(id:))
-                .navigationDestination(for: TripsRoute.self) { route in
+            NoteListView(onSelect: router.showNote(id:))
+                .navigationDestination(for: LibraryRoute.self) { route in
                     switch route {
-                    case .tripDetail(let id):
-                        TripDetailView(id: id)
-                    case .itinerary(let tripID):
-                        ItineraryView(tripID: tripID)
+                    case .folder(let id):
+                        FolderView(id: id)
+                    case .note(let id):
+                        NoteView(id: id)
+                    case .editor(let noteID):
+                        NoteEditor(noteID: noteID)
                     }
                 }
         }
         .sheet(item: $router.flow.sheet.item) { sheet in
             switch sheet {
-            case .newTrip:
-                NewTripView()
+            case .newNote:
+                NewNoteView()
+            case .share(let noteID):
+                ShareNoteView(noteID: noteID)
             }
         }
     }
@@ -294,22 +336,11 @@ too small to have one.
 **One sheet enum per screen.** Give a screen's sheets one `Identifiable` enum
 and one `SheetState`, not a `Bool` each: two flags can both be `true`, one
 optional item cannot hold two sheets. Cases carry ids rather than copies of
-models, so the sheet reads current data and the enum stays cheap to compare:
+models, so the sheet reads current data and the enum stays cheap to compare —
+`LibrarySheet` above is the shape:
 
 ```swift
-enum LibrarySheet: Identifiable, Equatable, Sendable {
-    case newNote
-    case share(noteID: UUID)
-
-    var id: String {
-        switch self {
-        case .newNote: "newNote"
-        case .share(let noteID): "share-\(noteID)"
-        }
-    }
-}
-
-sheet.present(.share(noteID: note.id))  // replaces whatever was up
+nav.sheet.present(.share(noteID: note.id))  // replaces whatever was up
 ```
 
 **Work after a dismissal.** The states say where the user is, not what happens

@@ -5,10 +5,10 @@ import Testing
 @Suite("Endpoint")
 struct EndpointTests {
     @Test("base and path join with exactly one slash", arguments: [
-        ("https://api.example.com", "/v2/rates", "https://api.example.com/v2/rates"),
-        ("https://api.example.com/", "v2/rates", "https://api.example.com/v2/rates"),
-        ("https://api.example.com/v1/", "/rates", "https://api.example.com/v1/rates"),
-        ("https://api.example.com/v1", "rates/", "https://api.example.com/v1/rates/"),
+        ("https://api.example.com", "/v2/notes", "https://api.example.com/v2/notes"),
+        ("https://api.example.com/", "v2/notes", "https://api.example.com/v2/notes"),
+        ("https://api.example.com/v1/", "/notes", "https://api.example.com/v1/notes"),
+        ("https://api.example.com/v1", "notes/", "https://api.example.com/v1/notes/"),
         ("https://api.example.com/v1", "", "https://api.example.com/v1"),
         ("https://api.example.com", "//double", "https://api.example.com/double"),
     ])
@@ -20,25 +20,25 @@ struct EndpointTests {
         let endpoint = Endpoint(
             baseURL: api, path: "search",
             query: [
-                URLQueryItem(name: "q", value: "São Paulo & more"),
+                URLQueryItem(name: "q", value: "Café & more"),
                 URLQueryItem(name: "tag", value: "a+b=c"),
                 URLQueryItem(name: "emoji", value: "🇳🇵"),
                 URLQueryItem(name: "flag", value: nil),
             ])
         #expect(
             try endpoint.url().absoluteString
-                == "https://api.example.com/search?q=S%C3%A3o%20Paulo%20%26%20more&tag=a%2Bb%3Dc&emoji=%F0%9F%87%B3%F0%9F%87%B5&flag")
+                == "https://api.example.com/search?q=Caf%C3%A9%20%26%20more&tag=a%2Bb%3Dc&emoji=%F0%9F%87%B3%F0%9F%87%B5&flag")
     }
 
     @Test func theBaseURLsPortAndQueryStay() throws {
         let base = URL(string: "http://localhost:8080/api?key=abc")!
-        let url = try Endpoint(baseURL: base, path: "/rates", query: [URLQueryItem(name: "base", value: "USD")]).url()
-        #expect(url.absoluteString == "http://localhost:8080/api/rates?key=abc&base=USD")
+        let url = try Endpoint(baseURL: base, path: "/notes", query: [URLQueryItem(name: "sort", value: "title")]).url()
+        #expect(url.absoluteString == "http://localhost:8080/api/notes?key=abc&sort=title")
         #expect(url.port == 8080)
     }
 
     @Test func aPathWithSpacesIsEncoded() throws {
-        #expect(try Endpoint(baseURL: api, path: "/trips/São Paulo").url().absoluteString == "https://api.example.com/trips/S%C3%A3o%20Paulo")
+        #expect(try Endpoint(baseURL: api, path: "/notes/Café menu").url().absoluteString == "https://api.example.com/notes/Caf%C3%A9%20menu")
     }
 
     @Test func aURLWithoutAHostIsInvalid() {
@@ -47,10 +47,10 @@ struct EndpointTests {
     }
 
     @Test func eachBodySetsItsContentType() throws {
-        struct Trip: Encodable { let name: String }
-        let json = try Endpoint(.post, baseURL: api, body: .json(encoding: Trip(name: "Nepal"))).urlRequest()
+        struct Note: Encodable { let title: String }
+        let json = try Endpoint(.post, baseURL: api, body: .json(encoding: Note(title: "Groceries"))).urlRequest()
         #expect(json.value(forHTTPHeaderField: "Content-Type") == "application/json")
-        #expect(json.httpBody == Data(#"{"name":"Nepal"}"#.utf8))
+        #expect(json.httpBody == Data(#"{"title":"Groceries"}"#.utf8))
         #expect(json.httpMethod == "POST")
 
         let form = try Endpoint(.post, baseURL: api, body: .form(["b": "x y", "a": "1+1"])).urlRequest()

@@ -5,7 +5,7 @@ import Foundation
 ///
 /// ```swift
 /// let client = HTTPClient(retry: RetryPolicy(maxAttempts: 2))
-/// let rates = try await client.send(endpoint, as: [Rate].self)
+/// let notes = try await client.send(endpoint, as: [Note].self)
 /// ```
 public final class HTTPClient: Sendable {
     /// How much of a non-2xx streaming response is kept in `NetworkError.http`'s body.

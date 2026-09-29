@@ -4,8 +4,8 @@ import Foundation
 /// `HTTPClient`. Nothing here touches the network.
 ///
 /// ```swift
-/// let rates = Endpoint(.get, baseURL: URL(string: "https://api.frankfurter.dev")!,
-///                      path: "/v2/rates", query: [URLQueryItem(name: "base", value: "USD")])
+/// let notes = Endpoint(.get, baseURL: URL(string: "https://api.example.com")!,
+///                      path: "/v1/notes", query: [URLQueryItem(name: "folder", value: "inbox")])
 /// ```
 public struct Endpoint: Sendable {
     /// What goes in the request body, and the `Content-Type` that says so.
@@ -48,7 +48,7 @@ public struct Endpoint: Sendable {
     /// Scheme, host, port and any leading path ("https://api.example.com/v1").
     public var baseURL: URL
     /// Appended to the base URL's path with exactly one "/" between them, whatever slashes
-    /// either side has. Not percent-encoded: "/trips/São Paulo" is fine.
+    /// either side has. Not percent-encoded: "/notes/Café menu" is fine.
     public var path: String
     /// Added after any query the base URL already has. Names and values are percent-encoded
     /// here, "+" included, so a server can't read it as a space.
@@ -116,7 +116,7 @@ public struct Endpoint: Sendable {
 
     // MARK: - Encoding
 
-    /// "/v1/" + "/rates" → "/v1/rates"; "" + "rates" → "/rates"; a trailing slash on `path` stays.
+    /// "/v1/" + "/notes" → "/v1/notes"; "" + "notes" → "/notes"; a trailing slash on `path` stays.
     static func join(_ base: String, _ path: String) -> String {
         let head = base.hasSuffix("/") ? String(base.dropLast()) : base
         guard !path.isEmpty else { return base }

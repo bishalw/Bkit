@@ -4,9 +4,9 @@ import Testing
 
 @Suite("HTTPClient")
 struct HTTPClientTests {
-    struct Rate: Decodable, Sendable, Equatable {
-        let quote: String
-        let rate: Double
+    struct Note: Decodable, Sendable, Equatable {
+        let id: Int
+        let title: String
     }
 
     private func client(_ transport: FakeTransport, retry: RetryPolicy = .none, interceptors: [any RequestInterceptor] = [], logger: HTTPLogger? = nil)
@@ -18,17 +18,17 @@ struct HTTPClientTests {
     // MARK: - Status and decoding
 
     @Test func a2xxBodyDecodes() async throws {
-        let transport = FakeTransport([.response(status: 200, body: json(#"[{"quote":"NPR","rate":153.45}]"#))])
-        let rates = try await client(transport).send(Endpoint(baseURL: api, path: "rates"), as: [Rate].self)
-        #expect(rates == [Rate(quote: "NPR", rate: 153.45)])
-        #expect(transport.requests.first?.url?.absoluteString == "https://api.example.com/rates")
+        let transport = FakeTransport([.response(status: 200, body: json(#"[{"id":1,"title":"Groceries"}]"#))])
+        let notes = try await client(transport).send(Endpoint(baseURL: api, path: "notes"), as: [Note].self)
+        #expect(notes == [Note(id: 1, title: "Groceries")])
+        #expect(transport.requests.first?.url?.absoluteString == "https://api.example.com/notes")
     }
 
     @Test("a non-2xx answer throws with its status and body", arguments: [400, 404, 422, 500, 503])
     func non2xx(status: Int) async {
         let transport = FakeTransport([.response(status: status, body: json(#"{"error":"nope"}"#))])
-        await #expect(throws: NetworkError.http(status: status, body: json(#"{"error":"nope"}"#), url: URL(string: "https://api.example.com/rates"))) {
-            try await client(transport).send(Endpoint(baseURL: api, path: "rates"))
+        await #expect(throws: NetworkError.http(status: status, body: json(#"{"error":"nope"}"#), url: URL(string: "https://api.example.com/notes"))) {
+            try await client(transport).send(Endpoint(baseURL: api, path: "notes"))
         }
     }
 
@@ -37,7 +37,7 @@ struct HTTPClientTests {
     @Test func typedThrowsLetsCallersMatchCases() async {
         let transport = FakeTransport([.response(status: 418, body: json("teapot"))])
         do {
-            _ = try await client(transport).send(Endpoint(baseURL: api), as: [Rate].self)
+            _ = try await client(transport).send(Endpoint(baseURL: api), as: [Note].self)
             Issue.record("expected an error")
         } catch .http(let status, _, let body, _) {
             #expect(status == 418)
@@ -64,17 +64,17 @@ struct HTTPClientTests {
     }
 
     @Test func aBodyThatDoesntDecodeIsADecodingError() async {
-        let transport = FakeTransport([.response(status: 200, body: json(#"{"quote":"NPR"}"#))])
+        let transport = FakeTransport([.response(status: 200, body: json(#"{"id":1}"#))])
         do {
-            _ = try await client(transport).send(Endpoint(baseURL: api), as: Rate.self)
+            _ = try await client(transport).send(Endpoint(baseURL: api), as: Note.self)
             Issue.record("expected a decoding error")
         } catch {
             guard case .decoding(let type, let underlying) = error else {
                 Issue.record("got \(error)")
                 return
             }
-            #expect(type == "Rate")
-            #expect(underlying.contains("rate"))
+            #expect(type == "Note")
+            #expect(underlying.contains("title"))
         }
     }
 
@@ -106,8 +106,8 @@ struct HTTPClientTests {
             .response(status: 200, body: json("[]")),
         ])
         let retry = RetryPolicy(maxAttempts: 3, baseDelay: .seconds(1), jitter: 0, sleeper: sleeper.sleeper)
-        let rates = try await client(transport, retry: retry).send(Endpoint(baseURL: api), as: [Rate].self)
-        #expect(rates.isEmpty)
+        let notes = try await client(transport, retry: retry).send(Endpoint(baseURL: api), as: [Note].self)
+        #expect(notes.isEmpty)
         #expect(transport.requests.count == 3)
         // The server's 2 s first; then backoff for the second failure: 1 s × 2¹.
         #expect(sleeper.recorded == [.seconds(2), .seconds(2)])
