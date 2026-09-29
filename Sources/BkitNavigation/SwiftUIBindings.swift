@@ -16,7 +16,7 @@ import SwiftUI
 /// against any stack-shaped state rather than per concrete type. It asks for a
 /// readable path and a single mutating write, which is exactly the contract
 /// `NavigationStack(path:)` needs and nothing more.
-public protocol NavigationPathState {
+public protocol NavigationPathState: Sendable {
     /// The element type the stack pushes.
     associatedtype Route: Hashable & Sendable
 
@@ -32,7 +32,7 @@ public protocol NavigationPathState {
 ///
 /// Sheets and full screen covers differ in how they look and in nothing that
 /// matters here, so both conform and share one binding.
-public protocol PresentedItemState {
+public protocol PresentedItemState: Sendable {
     /// The type identifying what is presented.
     associatedtype Item: Identifiable & Equatable & Sendable
 
@@ -50,7 +50,7 @@ public protocol PresentedItemState {
 /// The counterpart to ``PresentedItemState`` for the surfaces that carry no
 /// item: SwiftUI drives those with an `isPresented:` binding, and needs the
 /// same single write path to report an interactive dismissal.
-public protocol PresentationFlagState {
+public protocol PresentationFlagState: Sendable {
     /// Whether the surface is up.
     var isPresented: Bool { get }
 

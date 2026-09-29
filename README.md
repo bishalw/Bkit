@@ -1,33 +1,128 @@
 # Bkit
 
-Bkit is a Swift package that provides a comprehensive networking layer, a flexible logging system, and robust data parsing capabilities. It simplifies the process of making HTTP requests, logging application events, and decoding JSON data, making it easier to build and maintain your iOS and macOS applications.
-
-## Features
-
-- Provides a robust networking layer with support for both standard and streaming requests.
-- Includes a flexible logging system.
-- Supports custom data parsing with error handling.
+Bkit is a small set of Swift packages for iOS and macOS apps: an HTTP client
+(`BkitNetworking`), logging (`BkitLogging`), `UserDefaults`-backed property
+wrappers (`BkitStorage`), and navigation state (`BkitNavigation`). Each is its own
+library product, so an app links only what it uses.
 
 ## Requirements
 
-- iOS 16.0+ / macOS 13.0+
-- Xcode 12.0+
-- Swift 5.3+
+- iOS 16+ / macOS 13+
+- Swift 6 (swift-tools-version 6.0; every target builds in the Swift 6 language
+  mode with strict concurrency checking)
+- Xcode 16+
 
 ## Installation
 
 ### Swift Package Manager
 
-You can install Bkit using the Swift Package Manager:
+Add the package in Xcode (`File → Add Package Dependencies…`) or in
+`Package.swift`, then depend on the products you need:
 
-1. In Xcode, open your project and navigate to `File → Swift Packages → Add Package Dependency...`
-2. Paste the repository URL: 
-3. Click on `Next` and select the version you want to use.
-
+```swift
+.product(name: "BkitNetworking", package: "Bkit")
+```
 
 ### Networking
 
-To use the networking features, create an instance of `NetworkServiceImpl` and call the desired methods:
+`BkitNetworking` sends requests described as values. An `Endpoint` says what to
+send; an `HTTPClient` sends it, checks the status, retries what's safe to retry,
+decodes, and throws only `NetworkError`.
+
+```swift
+import BkitNetworking
+
+struct Rate: Decodable, Sendable {
+    let quote: String
+    let rate: Double
+}
+
+let client = HTTPClient(retry: RetryPolicy(maxAttempts: 2))
+
+let endpoint = Endpoint(
+    .get,
+    baseURL: URL(string: "https://api.frankfurter.dev")!,
+    path: "/v2/rates",                               // joined with exactly one "/"
+    query: [URLQueryItem(name: "base", value: "USD")] // percent-encoded, "+" included
+)
+
+do {
+    let rates = try await client.send(endpoint, as: [Rate].self)
+} catch .http(let status, let body, _) {
+    // Any non-2xx answer, with what the server said.
+} catch .offline {
+    // No connection: show it, don't retry in a loop.
+} catch {
+    // .timedOut, .cancelled, .decoding(type:underlying:), .transport(URLError), .invalidURL
+}
+```
+
+`send` uses typed throws (`throws(NetworkError)`), so the `catch` clauses above
+match cases directly. `send(_:)` without a type returns the raw
+`(Data, HTTPURLResponse)` of a 2xx response.
+
+**Bodies** set their own `Content-Type`: `.json(data)`,
+`try .json(encoding: value)`, `.form(["name": "value"])` and
+`.raw(data, contentType:)`. An explicit `Content-Type` header wins.
+
+**Retries.** `RetryPolicy` retries 429, 502, 503 and 504 and transient
+connection failures, with exponential backoff and jitter, and waits for a
+server's `Retry-After` (up to `maxRetryAfter`). Only idempotent methods (GET,
+HEAD, PUT, DELETE) are retried unless `retriesNonIdempotent` is set. Cancelling
+the task stops it at once, mid-wait included. `RetryPolicy.none` sends once.
+
+**Interceptors** adapt every request, in order, on every attempt — the place
+for an `Authorization` header or an App Attest assertion:
+
+```swift
+struct BearerToken: RequestInterceptor {
+    let token: @Sendable () async throws -> String
+
+    func adapt(_ request: URLRequest) async throws -> URLRequest {
+        var request = request
+        request.setValue("Bearer \(try await token())", forHTTPHeaderField: "Authorization")
+        return request
+    }
+}
+```
+
+**Streams.** `lines(_:)` yields the body line by line as it arrives;
+`events(_:)` parses Server-Sent Events (multi-line `data:`, `event:`, `id:`,
+`retry:`, comments) and by default ends at `data: [DONE]`. Decode an event with
+`event.decode(MyDelta.self)`. A non-2xx stream throws `.http` with the start of
+its body. Streams aren't retried.
+
+**Logging** is off unless you pass `HTTPLogger()` (os.Logger through
+BkitLogging). `Authorization`, `Proxy-Authorization`, `Cookie` and `Set-Cookie`
+values are always redacted; bodies are logged only with `includesBodies: true`.
+
+**Testing.** Everything network-facing goes through `HTTPTransport`, so tests
+hand the client a fake and check both the requests it made and how it handled
+each answer — no network, no `URLProtocol`:
+
+```swift
+struct CannedTransport: HTTPTransport {
+    let status: Int
+    let body: Data
+
+    func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        (body, HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
+    }
+
+    func bytes(for request: URLRequest) async throws -> (AsyncThrowingStream<UInt8, any Error>, HTTPURLResponse) {
+        let (data, response) = try await data(for: request)
+        return (AsyncThrowingStream { continuation in
+            data.forEach { continuation.yield($0) }
+            continuation.finish()
+        }, response)
+    }
+}
+
+let client = HTTPClient(
+    transport: CannedTransport(status: 503, body: Data()),
+    retry: RetryPolicy(maxAttempts: 3, sleeper: .init { _ in })  // no real waiting
+)
+```
 
 ### Navigation
 

@@ -69,29 +69,29 @@ final class NavigationStateTests: XCTestCase {
     }
 
     func testStackBindingMutatesUnderlyingState() {
-        var state = StackState<TestRoute>(path: [.home])
+        let state = Box(StackState<TestRoute>(path: [.home]))
         let binding = Binding<StackState<TestRoute>>(
-            get: { state },
-            set: { newValue in state = newValue }
+            get: { state.value },
+            set: { newValue in state.value = newValue }
         )
 
         binding.path.wrappedValue = [.home, .detail(id: "trip-2")]
 
-        XCTAssertEqual(state.path, [.home, .detail(id: "trip-2")])
+        XCTAssertEqual(state.value.path, [.home, .detail(id: "trip-2")])
     }
 
     func testPresentationBindingMutatesUnderlyingState() {
-        var sheet = SheetState<TestModal>()
+        let sheet = Box(SheetState<TestModal>())
         let binding = Binding<SheetState<TestModal>>(
-            get: { sheet },
-            set: { newValue in sheet = newValue }
+            get: { sheet.value },
+            set: { newValue in sheet.value = newValue }
         )
 
         binding.item.wrappedValue = .settings
-        XCTAssertEqual(sheet.item, .settings)
+        XCTAssertEqual(sheet.value.item, .settings)
 
         binding.item.wrappedValue = nil
-        XCTAssertNil(sheet.item)
+        XCTAssertNil(sheet.value.item)
     }
     func testIsPresentingMatchesOnlyThePresentedItem() {
         var sheet = SheetState<TestModal>()
@@ -136,18 +136,25 @@ final class NavigationStateTests: XCTestCase {
     }
 
     func testPresentationFlagBindingMutatesUnderlyingState() {
-        var state = PresentationState()
+        let state = Box(PresentationState())
         let binding = Binding<PresentationState>(
-            get: { state },
-            set: { newValue in state = newValue }
+            get: { state.value },
+            set: { newValue in state.value = newValue }
         )
 
         binding.isPresented.wrappedValue = true
-        XCTAssertTrue(state.isPresented)
+        XCTAssertTrue(state.value.isPresented)
 
         binding.isPresented.wrappedValue = false
-        XCTAssertFalse(state.isPresented)
+        XCTAssertFalse(state.value.isPresented)
     }
+}
+
+/// What a `Binding` reads and writes in these tests. A reference, because `Binding`'s closures
+/// are `@Sendable` and can't capture a local `var`.
+private final class Box<Value>: @unchecked Sendable {
+    var value: Value
+    init(_ value: Value) { self.value = value }
 }
 
 private enum TestRoute: Hashable, Sendable {

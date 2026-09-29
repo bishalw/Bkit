@@ -53,3 +53,7 @@ public class LoggerManager: Logging {
         logger.warning("\(self.formatMessage(message, file: file, function: function, line: line))")
     }
 }
+
+/// Safe to share: its only state is an `os.Logger`, which is `Sendable`. Unchecked because the
+/// class isn't `final`, so the compiler can't rule out a subclass adding mutable state.
+extension LoggerManager: @unchecked Sendable {}
