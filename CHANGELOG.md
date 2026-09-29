@@ -78,8 +78,10 @@ release:
 
 ### Fixes
 
-- `HTTPLogger` no longer writes query values: every value is `<redacted>` unless its
-  name is in `unredactedQueryItems`, and the URL's fragment is left out.
+- `HTTPLogger` no longer writes credentials in the URL: a `user:password@` (or a bare
+  `user@`, which can be a token) is logged as `<redacted>@`, every query value is
+  `<redacted>` unless its name is in `unredactedQueryItems`, and the fragment is left
+  out.
 - `HTTPLogger`'s lines read on a device: `OSLogSink` logs them with `privacy: .public`
   (they are redacted first) instead of `<private>`, without a file/function/line
   banner.

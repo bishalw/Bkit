@@ -284,6 +284,9 @@ struct HTTPClientTests {
         ("https://api.example.com/notes?a%20b=1&empty=&flag", "https://api.example.com/notes?a%20b=<redacted>&empty=<redacted>&flag"),
         ("https://api.example.com/cb?code=xyz#access_token=abc", "https://api.example.com/cb?code=<redacted>"),
         ("http://localhost:8080/notes?key=k", "http://localhost:8080/notes?key=<redacted>"),
+        ("https://user:hunter2@api.example.com/notes", "https://<redacted>@api.example.com/notes"),
+        ("https://ghp_t0ken@api.example.com:8443/notes?page=1", "https://<redacted>@api.example.com:8443/notes?page=1"),
+        ("https://:hunter2@api.example.com/", "https://<redacted>@api.example.com/"),
     ])
     func loggedURL(url: String, expected: String) {
         #expect(HTTPLogger(sink: RecordingSink(), unredactedQueryItems: ["page"]).redacted(URL(string: url)) == expected)
@@ -297,6 +300,19 @@ struct HTTPClientTests {
         let transport = FakeTransport([.response(status: 204)])
         try await client(transport, logger: HTTPLogger(sink: sink)).send(Endpoint(baseURL: api, path: "notes"))
         #expect(emitted.withLock { $0 } == ["→ GET https://api.example.com/notes", "← 204 GET https://api.example.com/notes"])
+    }
+
+    @Test func credentialsInTheURLNeverReachTheLog() async throws {
+        let sink = RecordingSink()
+        let transport = FakeTransport([.response(status: 200), .failure(URLError(.cannotFindHost))])
+        let endpoint = Endpoint(baseURL: URL(string: "https://admin:hunter2@api.example.com")!, path: "notes")
+        try await client(transport, logger: HTTPLogger(sink: sink)).send(endpoint)
+        _ = try? await client(transport, logger: HTTPLogger(sink: sink)).send(endpoint)
+        let log = sink.written.joined(separator: "\n")
+        #expect(log.contains("→ GET https://<redacted>@api.example.com/notes"))
+        #expect(log.contains("← 200 GET https://<redacted>@api.example.com/notes"))
+        #expect(log.contains("✕ GET https://<redacted>@api.example.com/notes:"))
+        #expect(!log.contains("admin") && !log.contains("hunter2"))
     }
 
     @Test func bodiesAreLoggedOnlyWhenAskedFor() async throws {

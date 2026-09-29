@@ -36,8 +36,9 @@ public struct OSLogSink: HTTPLogSink {
 /// Request and response logging for `HTTPClient`, which logs nothing unless given one.
 ///
 /// Credentials never reach the log: `Authorization`, `Proxy-Authorization`, `Cookie` and
-/// `Set-Cookie` values are replaced, whatever their case, and so is every query value
-/// (`?api_key=<redacted>&page=<redacted>`) unless its name is in `unredactedQueryItems`.
+/// `Set-Cookie` values are replaced, whatever their case, and so is a URL's
+/// `user:password@` and every query value (`?api_key=<redacted>&page=<redacted>`) unless its
+/// name is in `unredactedQueryItems`.
 /// Bodies aren't logged unless `includesBodies` is set — they're where personal data lives.
 public struct HTTPLogger: Sendable {
     public static let defaultRedactedHeaders: Set<String> = ["authorization", "proxy-authorization", "cookie", "set-cookie"]
@@ -85,15 +86,24 @@ public struct HTTPLogger: Sendable {
         sink.write("✕ \(request.httpMethod ?? "GET") \(redacted(request.url)): \(error.errorDescription ?? "\(error)")")
     }
 
-    /// The URL as logged: every query value replaced unless its name is in
-    /// `unredactedQueryItems`. The fragment is left out; it is never sent to the server.
+    /// The URL as logged: any `user:password@` replaced with `<redacted>@`, and every query
+    /// value replaced unless its name is in `unredactedQueryItems`. The fragment is left out;
+    /// it is never sent to the server.
     func redacted(_ url: URL?) -> String {
         guard let url else { return "?" }
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return "?" }
         let query = components.percentEncodedQuery
+        // The user alone can be the credential ("https://<token>@host"), so all of it goes.
+        let hasUserInfo = components.percentEncodedUser != nil || components.percentEncodedPassword != nil
+        components.percentEncodedUser = nil
+        components.percentEncodedPassword = nil
         components.percentEncodedQuery = nil
         components.percentEncodedFragment = nil
-        guard let base = components.string else { return "?" }
+        guard var base = components.string else { return "?" }
+        if hasUserInfo {
+            guard let scheme = components.scheme, base.hasPrefix(scheme + "://") else { return "?" }
+            base.insert(contentsOf: "<redacted>@", at: base.index(base.startIndex, offsetBy: scheme.count + 3))
+        }
         guard let query, !query.isEmpty else { return base }
         let items = query.split(separator: "&", omittingEmptySubsequences: false).map { item -> String in
             guard let equals = item.firstIndex(of: "=") else { return String(item) }
