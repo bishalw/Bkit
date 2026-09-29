@@ -14,9 +14,9 @@ import Foundation
 /// state, which any code can flip and no test can distinguish from every other
 /// flag beside it.
 public struct PresentationFlag: Equatable, Sendable {
-    /// Whether the surface is up. Read-only from outside; see
-    /// `SwiftUIBindings.swift` for why every write arrives through
-    /// ``replace(with:)``.
+    /// Whether the surface is up. Read-only from outside, so it
+    /// changes only through the methods below; see `SwiftUIBindings.swift`
+    /// for why.
     public private(set) var isPresented: Bool
 
     /// Creates a presentation flag, optionally already showing.

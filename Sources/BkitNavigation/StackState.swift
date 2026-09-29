@@ -6,9 +6,9 @@ import Foundation
 /// without holding a view, and a test can assert on the resulting path without
 /// running one.
 public struct StackState<Route: Hashable & Sendable>: Equatable, Sendable {
-    /// The pushed routes, root first. Read-only from outside; see
-    /// `SwiftUIBindings.swift` for why every write arrives through
-    /// ``replace(with:)``.
+    /// The pushed routes, root first. Read-only from outside, so it
+    /// changes only through the methods below; see `SwiftUIBindings.swift`
+    /// for why.
     public private(set) var path: [Route]
 
     /// Creates a stack, optionally already showing a path.

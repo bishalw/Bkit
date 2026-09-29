@@ -1,14 +1,21 @@
 import SwiftUI
 
-// Why every state type here keeps its stored property `private(set)`:
+// How the bindings below reach SwiftUI, and what `private(set)` is for.
 //
-// `Binding` uses dynamic member lookup, so `$state.path` would ordinarily
-// resolve to the stored array and let SwiftUI assign straight into it. A
-// private setter makes that key path unwritable, which leaves the extensions
-// below as the only `path`, `item` or `isPresented` a caller can reach — and
-// they route every system write through `replace(with:)`. One write path is
-// what makes an interactive pop or dismissal observable in the same place as
-// a deep link, instead of in as many places as there are call sites.
+// `$model.stack.path` resolves to the `path` property in the `Binding`
+// extension below, not to `Binding`'s dynamic member subscript: Swift finds a
+// type's real members, extension members included, before it falls back to
+// `@dynamicMemberLookup`. The subscript couldn't reach `path` anyway, since it
+// takes a `WritableKeyPath` and a `private(set)` property's key path is
+// read-only outside the module.
+//
+// So the private setter isn't what makes these bindings win. What it buys is
+// that code outside the module can't assign `path`, `item` or `isPresented`
+// directly: callers change them through the named transitions (`push`,
+// `present`, `dismiss`…), and every write from the system arrives through
+// `replace(with:)`, which the bindings call. An interactive pop or dismissal
+// then lands in one method, the same one a deep link uses, instead of in as
+// many places as there are call sites.
 
 /// A stack whose path SwiftUI is allowed to write back.
 ///

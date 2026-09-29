@@ -7,8 +7,8 @@ import Foundation
 /// rather than a `Bool` keeps the description and the visibility in step.
 public struct FullScreenCoverState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
     /// The item being shown, or `nil` when no cover is up. Read-only from
-    /// outside; see `SwiftUIBindings.swift` for why every write arrives
-    /// through ``replace(with:)``.
+    /// outside, so it changes only through the methods below; see
+    /// `SwiftUIBindings.swift` for why.
     public private(set) var item: Item?
 
     /// Creates a cover state, optionally already presenting an item — how a

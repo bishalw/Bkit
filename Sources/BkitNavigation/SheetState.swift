@@ -11,8 +11,8 @@ import Foundation
 /// time, and the type says so.
 public struct SheetState<Item>: Equatable, Sendable where Item: Identifiable & Equatable & Sendable {
     /// The item being shown, or `nil` when no sheet is up. Read-only from
-    /// outside; see `SwiftUIBindings.swift` for why every write arrives
-    /// through ``replace(with:)``.
+    /// outside, so it changes only through the methods below; see
+    /// `SwiftUIBindings.swift` for why.
     public private(set) var item: Item?
 
     /// Creates a sheet state, optionally already presenting an item — how a
