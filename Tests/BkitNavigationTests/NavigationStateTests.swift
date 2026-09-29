@@ -129,8 +129,8 @@ final class NavigationStateTests: XCTestCase {
         XCTAssertFalse(state.pop(to: .detail(id: "a")))
         XCTAssertEqual(state.path, [.home, .detail(id: "a")])
     }
-    func testPresentationStateTransitions() {
-        var state = PresentationState()
+    func testPresentationFlagTransitions() {
+        var state = PresentationFlag()
         XCTAssertFalse(state.isPresented)
 
         state.present()
@@ -141,8 +141,8 @@ final class NavigationStateTests: XCTestCase {
     }
 
     func testPresentationFlagBindingMutatesUnderlyingState() {
-        let state = Box(PresentationState())
-        let binding = Binding<PresentationState>(
+        let state = Box(PresentationFlag())
+        let binding = Binding<PresentationFlag>(
             get: { state.value },
             set: { newValue in state.value = newValue }
         )

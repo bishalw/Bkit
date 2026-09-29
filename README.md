@@ -137,7 +137,7 @@ let client = HTTPClient(
 
 `BkitNavigation` models navigation *state*. It gives a feature value types for
 the surfaces SwiftUI presents — `StackState`, `SheetState`,
-`FullScreenCoverState`, and `PresentationState` for the ones driven by a flag
+`FullScreenCoverState`, and `PresentationFlag` for the ones driven by a flag
 rather than an item — plus the bindings that hand those values to
 `NavigationStack`, `.sheet`, `.fullScreenCover` and friends.
 
@@ -165,7 +165,7 @@ struct TripListNavigation: Equatable {
 
 struct TripDetailNavigation: Equatable {
     var sheet = SheetState<TripDetailSheet>()
-    var map = PresentationState()
+    var map = PresentationFlag()
 }
 ```
 

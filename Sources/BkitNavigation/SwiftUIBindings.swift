@@ -55,7 +55,7 @@ public protocol PresentationFlagState: Sendable {
     var isPresented: Bool { get }
 
     /// Accepts visibility from the system, including the `false` that arrives
-    /// on an interactive dismissal. See ``PresentationState/replace(with:)``
+    /// on an interactive dismissal. See ``PresentationFlag/replace(with:)``
     /// for why this is the only write.
     mutating func replace(with isPresented: Bool)
 }
@@ -63,7 +63,7 @@ public protocol PresentationFlagState: Sendable {
 extension StackState: NavigationPathState {}
 extension SheetState: PresentedItemState {}
 extension FullScreenCoverState: PresentedItemState {}
-extension PresentationState: PresentationFlagState {}
+extension PresentationFlag: PresentationFlagState {}
 
 public extension Binding where Value: NavigationPathState {
     /// A path binding to hand to `NavigationStack(path:)`.

@@ -13,13 +13,13 @@ import Foundation
 /// siblings. Without it the only option is a bare `Bool` on the app's own
 /// state, which any code can flip and no test can distinguish from every other
 /// flag beside it.
-public struct PresentationState: Equatable, Sendable {
+public struct PresentationFlag: Equatable, Sendable {
     /// Whether the surface is up. Read-only from outside; see
     /// `SwiftUIBindings.swift` for why every write arrives through
     /// ``replace(with:)``.
     public private(set) var isPresented: Bool
 
-    /// Creates a presentation state, optionally already showing.
+    /// Creates a presentation flag, optionally already showing.
     public init(isPresented: Bool = false) {
         self.isPresented = isPresented
     }
